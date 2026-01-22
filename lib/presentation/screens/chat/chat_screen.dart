@@ -907,11 +907,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
     
     if (result != null && result.images.isNotEmpty && mounted) {
-      // TODO: Handle the generated image (e.g., save it, show preview, add to chat)
       final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.generationComplete)),
-      );
+      
+      // Save each image to local storage and add as attachment to the message
+      try {
+        final appDocDir = await getApplicationDocumentsDirectory();
+        final imagesDir = Directory(p.join(appDocDir.path, 'chat_images'));
+        if (!await imagesDir.exists()) {
+          await imagesDir.create(recursive: true);
+        }
+        
+        for (int i = 0; i < result.images.length; i++) {
+          final imageBytes = result.images[i];
+          final imageId = const Uuid().v4();
+          final fileName = '${imageId}.${result.format}';
+          final filePath = p.join(imagesDir.path, fileName);
+          
+          // Save image to file
+          final file = File(filePath);
+          await file.writeAsBytes(imageBytes);
+          
+          // Create attachment
+          final attachment = ChatAttachment(
+            id: imageId,
+            path: filePath,
+            mimeType: 'image/${result.format}',
+            sizeBytes: imageBytes.length,
+          );
+          
+          // Add attachment to message
+          await ref.read(activeChatProvider.notifier).addAttachmentToMessage(
+            message.id,
+            attachment,
+          );
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.generationComplete} - ${result.images.length} image(s) added')),
+        );
+      } catch (e) {
+        debugPrint('Failed to save generated image: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save image: $e')),
+        );
+      }
     }
   }
 

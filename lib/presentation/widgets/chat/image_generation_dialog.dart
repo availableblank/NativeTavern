@@ -148,6 +148,10 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+              
+              // Model selector
+              _buildModelSelector(settings),
               const SizedBox(height: 16),
 
               // Prompt
@@ -349,6 +353,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
         cfgScale: settings.defaultCfgScale,
         sampler: settings.defaultSampler,
         mode: widget.mode,
+        model: settings.model, // Use currently selected model
       ));
 
       if (mounted) {
@@ -372,5 +377,68 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
         });
       }
     }
+  }
+
+  /// Build model selector dropdown
+  Widget _buildModelSelector(ImageGenSettings settings) {
+    final availableModels = ref.watch(availableModelsProvider);
+    final currentModel = settings.model;
+    
+    return Row(
+      children: [
+        const Icon(Icons.memory, size: 16, color: AppTheme.textMuted),
+        const SizedBox(width: 8),
+        const Text(
+          'Model:',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.darkBackground,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: availableModels.contains(currentModel) ? currentModel : null,
+                isExpanded: true,
+                isDense: true,
+                dropdownColor: AppTheme.darkCard,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 12,
+                ),
+                hint: Text(
+                  currentModel,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                items: availableModels.map((model) {
+                  return DropdownMenuItem<String>(
+                    value: model,
+                    child: Text(
+                      model,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: _isGenerating ? null : (value) {
+                  if (value != null) {
+                    ref.read(imageGenSettingsProvider.notifier).setModel(value);
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

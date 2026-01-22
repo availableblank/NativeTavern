@@ -587,6 +587,25 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     );
   }
 
+  /// Add an attachment to an existing message
+  Future<void> addAttachmentToMessage(String messageId, ChatAttachment attachment) async {
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+
+    final message = state.messages[messageIndex];
+    final updatedAttachments = [...message.attachments, attachment];
+    
+    final updatedMessage = message.copyWith(
+      attachments: updatedAttachments,
+    );
+
+    await _chatRepository.updateMessage(updatedMessage);
+
+    final updatedMessages = List<ChatMessage>.from(state.messages);
+    updatedMessages[messageIndex] = updatedMessage;
+    state = state.copyWith(messages: updatedMessages);
+  }
+
   /// Delete a message and all messages after it
   Future<void> deleteMessageAndAfter(String messageId) async {
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);

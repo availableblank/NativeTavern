@@ -342,7 +342,15 @@ class FetchedModelsNotifier extends StateNotifier<FetchedModelsState> {
   final ImageGenerationService _service;
   final ImageGenSettings _settings;
   
-  FetchedModelsNotifier(this._service, this._settings) : super(const FetchedModelsState());
+  FetchedModelsNotifier(this._service, this._settings) : super(const FetchedModelsState()) {
+    // Auto-fetch models on initialization if provider supports it
+    if (_settings.provider.supportsFetchingModels) {
+      fetchModels();
+    } else {
+      // Use default models immediately for providers that don't support fetching
+      state = FetchedModelsState(models: _settings.provider.defaultModels);
+    }
+  }
   
   Future<void> fetchModels() async {
     debugPrint('FetchedModelsNotifier.fetchModels() called');

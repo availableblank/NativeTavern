@@ -215,25 +215,25 @@ Persona personaFromSillyTavern(Map<String, dynamic> json) {
   }
   
   return Persona(
-    id: json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-    name: json['name'] ?? 'Unknown',
-    description: json['description'] ?? '',
-    avatarPath: json['avatar'],
-    isDefault: json['default'] ?? false,
+    id: (json['id'] as String?) ?? DateTime.now().millisecondsSinceEpoch.toString(),
+    name: (json['name'] as String?) ?? 'Unknown',
+    description: (json['description'] as String?) ?? '',
+    avatarPath: json['avatar'] as String?,
+    isDefault: (json['default'] as bool?) ?? false,
     createdAt: json['created_at'] != null 
-        ? DateTime.tryParse(json['created_at']) ?? now 
+        ? DateTime.tryParse(json['created_at'] as String) ?? now 
         : now,
     updatedAt: now,
     descriptionSettings: PersonaDescriptionSettings(
       position: position,
-      depth: json['description_depth'] ?? 0,
+      depth: (json['description_depth'] as int?) ?? 0,
       role: role,
     ),
-    lorebookId: json['lorebook'],
+    lorebookId: json['lorebook'] as String?,
     tags: json['tags'] != null 
-        ? List<String>.from(json['tags']) 
+        ? List<String>.from(json['tags'] as Iterable) 
         : [],
-    creatorNotes: json['creator_notes'] ?? '',
+    creatorNotes: (json['creator_notes'] as String?) ?? '',
   );
 }
 

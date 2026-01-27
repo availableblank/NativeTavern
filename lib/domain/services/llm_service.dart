@@ -819,6 +819,25 @@ class LLMService {
       'frequency_penalty': config.frequencyPenalty,
       'presence_penalty': config.presencePenalty,
     };
+
+    // Add standard OpenAI params
+    if (config.stopSequences.isNotEmpty) {
+      requestData['stop'] = config.stopSequences;
+    }
+    if (config.seed != -1) {
+      requestData['seed'] = config.seed;
+    }
+
+    // Add extended parameters for compatible providers (OpenRouter, local, etc)
+    // Official OpenAI API might reject these, so we exclude them for LLMProvider.openai
+    if (config.provider != LLMProvider.openai) {
+      if (config.topK > 0) requestData['top_k'] = config.topK;
+      if (config.repetitionPenalty != 1.0) requestData['repetition_penalty'] = config.repetitionPenalty;
+      if (config.minP > 0.0) requestData['min_p'] = config.minP;
+      if (config.topA > 0.0) requestData['top_a'] = config.topA;
+      if (config.typicalP != 1.0) requestData['typical_p'] = config.typicalP;
+      if (config.tailFreeSampling != 1.0) requestData['tfs_z'] = config.tailFreeSampling;
+    }
     
     _logRequest(endpoint, requestData, config);
     
@@ -1152,6 +1171,15 @@ class LLMService {
         'temperature': config.temperature,
         'top_p': config.topP,
         'top_k': config.topK,
+        'repeat_penalty': config.repetitionPenalty,
+        'stop': config.stopSequences,
+        'seed': config.seed != -1 ? config.seed : null,
+        'mirostat': config.mirostatMode,
+        'mirostat_tau': config.mirostatTau,
+        'mirostat_eta': config.mirostatEta,
+        'tfs_z': config.tailFreeSampling,
+        'typical_p': config.typicalP,
+        'min_p': config.minP,
       },
     };
     
@@ -1258,6 +1286,16 @@ class LLMService {
       'temperature': config.temperature,
       'top_p': config.topP,
       'top_k': config.topK,
+      'rep_pen': config.repetitionPenalty,
+      'rep_pen_range': config.repetitionPenaltyRange,
+      'typical': config.typicalP,
+      'tfs': config.tailFreeSampling,
+      'mirostat': config.mirostatMode,
+      'mirostat_tau': config.mirostatTau,
+      'mirostat_eta': config.mirostatEta,
+      'stop_sequence': config.stopSequences,
+      'seed': config.seed != -1 ? config.seed : -1,
+      'min_p': config.minP,
     };
     
     _logRequest(endpoint, requestData, config);
@@ -1386,6 +1424,24 @@ class LLMService {
         'presence_penalty': config.presencePenalty,
         'stream': true,
       };
+
+      // Add standard OpenAI params
+      if (config.stopSequences.isNotEmpty) {
+        requestData['stop'] = config.stopSequences;
+      }
+      if (config.seed != -1) {
+        requestData['seed'] = config.seed;
+      }
+
+      // Add extended parameters for compatible providers (OpenRouter, local, etc)
+      if (config.provider != LLMProvider.openai) {
+        if (config.topK > 0) requestData['top_k'] = config.topK;
+        if (config.repetitionPenalty != 1.0) requestData['repetition_penalty'] = config.repetitionPenalty;
+        if (config.minP > 0.0) requestData['min_p'] = config.minP;
+        if (config.topA > 0.0) requestData['top_a'] = config.topA;
+        if (config.typicalP != 1.0) requestData['typical_p'] = config.typicalP;
+        if (config.tailFreeSampling != 1.0) requestData['tfs_z'] = config.tailFreeSampling;
+      }
       
       _logRequest(endpoint, requestData, config);
       
@@ -1725,6 +1781,15 @@ class LLMService {
         'temperature': config.temperature,
         'top_p': config.topP,
         'top_k': config.topK,
+        'repeat_penalty': config.repetitionPenalty,
+        'stop': config.stopSequences,
+        'seed': config.seed != -1 ? config.seed : null,
+        'mirostat': config.mirostatMode,
+        'mirostat_tau': config.mirostatTau,
+        'mirostat_eta': config.mirostatEta,
+        'tfs_z': config.tailFreeSampling,
+        'typical_p': config.typicalP,
+        'min_p': config.minP,
       },
     };
     
@@ -1789,6 +1854,16 @@ class LLMService {
       'temperature': config.temperature,
       'top_p': config.topP,
       'top_k': config.topK,
+      'rep_pen': config.repetitionPenalty,
+      'rep_pen_range': config.repetitionPenaltyRange,
+      'typical': config.typicalP,
+      'tfs': config.tailFreeSampling,
+      'mirostat': config.mirostatMode,
+      'mirostat_tau': config.mirostatTau,
+      'mirostat_eta': config.mirostatEta,
+      'stop_sequence': config.stopSequences,
+      'seed': config.seed != -1 ? config.seed : -1,
+      'min_p': config.minP,
     };
     
     _logRequest(endpoint, requestData, config);

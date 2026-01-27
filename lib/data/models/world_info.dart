@@ -441,8 +441,8 @@ WorldInfoEntry worldInfoEntryFromExport(
           : filterType == 'exclude'
               ? WorldInfoCharacterFilterType.exclude
               : WorldInfoCharacterFilterType.none,
-      characterIds: List<String>.from(export.characterFilter!['characterIds'] ?? []),
-      tags: List<String>.from(export.characterFilter!['tags'] ?? []),
+      characterIds: List<String>.from((export.characterFilter!['characterIds'] as Iterable<dynamic>?) ?? []),
+      tags: List<String>.from((export.characterFilter!['tags'] as Iterable<dynamic>?) ?? []),
     );
   }
   

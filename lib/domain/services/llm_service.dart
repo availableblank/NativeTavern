@@ -226,18 +226,17 @@ class LLMService {
   final Dio _dio = Dio();
   
   /// Log a message to the console
+  /// Always calls debugPrint so DebugLogService can capture logs in all build modes
   void _log(String message, {String? error, StackTrace? stackTrace}) {
     final timestamp = DateTime.now().toIso8601String();
     final logMessage = '[$timestamp] LLMService: $message';
     
-    if (kDebugMode) {
-      debugPrint(logMessage);
-      if (error != null) {
-        debugPrint('  Error: $error');
-      }
-      if (stackTrace != null) {
-        debugPrint('  StackTrace: $stackTrace');
-      }
+    debugPrint(logMessage);
+    if (error != null) {
+      debugPrint('  Error: $error');
+    }
+    if (stackTrace != null) {
+      debugPrint('  StackTrace: $stackTrace');
     }
     
     // Also log to developer console for better visibility
@@ -912,13 +911,13 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -939,7 +938,8 @@ class LLMService {
               }
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }
@@ -1049,13 +1049,13 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -1075,7 +1075,8 @@ class LLMService {
               }
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }
@@ -1235,13 +1236,13 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -1259,7 +1260,8 @@ class LLMService {
               yield content;
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }
@@ -1350,13 +1352,13 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -1373,7 +1375,8 @@ class LLMService {
               yield token;
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }
@@ -1478,14 +1481,14 @@ class LLMService {
         }
       }
 
-      final stream = response.data!.stream;
+      final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
       final buffer = StringBuffer();
       final fullContent = StringBuffer();
       final fullReasoning = StringBuffer();
       var isFirst = true;
       
-      await for (final bytes in stream) {
-        buffer.write(utf8.decode(bytes));
+      await for (final chunk in stream) {
+        buffer.write(chunk);
         final lines = buffer.toString().split('\n');
         buffer.clear();
         
@@ -1579,15 +1582,15 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     final fullThinking = StringBuffer();
     var isFirst = true;
     var currentBlockType = ''; // Track current content block type
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -1642,7 +1645,8 @@ class LLMService {
               currentBlockType = '';
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }
@@ -1690,14 +1694,14 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     final fullThought = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       
       // Gemini streams JSON array chunks
       try {
@@ -1804,13 +1808,13 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -1828,7 +1832,8 @@ class LLMService {
               yield LLMStreamChunk(content: content);
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }
@@ -1877,13 +1882,13 @@ class LLMService {
       data: requestData,
     );
 
-    final stream = response.data!.stream;
+    final stream = response.data!.stream.cast<List<int>>().transform(utf8.decoder);
     final buffer = StringBuffer();
     final fullContent = StringBuffer();
     var isFirst = true;
     
-    await for (final bytes in stream) {
-      buffer.write(utf8.decode(bytes));
+    await for (final chunk in stream) {
+      buffer.write(chunk);
       final lines = buffer.toString().split('\n');
       buffer.clear();
       
@@ -1900,7 +1905,8 @@ class LLMService {
               yield LLMStreamChunk(content: token);
             }
           } catch (e) {
-            // Skip malformed lines
+            // Skip malformed lines but log them
+            _log('Skipping malformed JSON line: $e');
           }
         }
       }

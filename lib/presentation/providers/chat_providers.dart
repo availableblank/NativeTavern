@@ -173,7 +173,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           isLoading: false,
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider error: $e\n$stackTrace');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -244,7 +245,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
 
       return chat.id;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider createChat error: $e\n$stackTrace');
       state = state.copyWith(isLoading: false, error: e.toString());
       return null;
     }
@@ -335,7 +337,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
 
       return chat.id;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider createGroupChat error: $e\n$stackTrace');
       state = state.copyWith(isLoading: false, error: e.toString());
       return null;
     }
@@ -451,7 +454,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.addMessage(finalMessage);
 
       state = state.copyWith(isGenerating: false);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider sendMessage error: $e\n$stackTrace');
       state = state.copyWith(
         isGenerating: false,
         error: e.toString(),
@@ -552,7 +556,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.updateMessage(finalMessage);
 
       state = state.copyWith(isGenerating: false);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider regenerateLastMessage error: $e\n$stackTrace');
       state = state.copyWith(isGenerating: false, error: e.toString());
     }
   }
@@ -740,7 +745,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.updateMessage(finalMessage);
 
       state = state.copyWith(isGenerating: false);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider swipeGenerate error: $e\n$stackTrace');
       state = state.copyWith(isGenerating: false, error: e.toString());
     }
   }
@@ -890,7 +896,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.addMessage(finalMessage);
 
       state = state.copyWith(isGenerating: false);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider _generateAssistantResponse error: $e\n$stackTrace');
       state = state.copyWith(
         isGenerating: false,
         error: e.toString(),
@@ -2170,7 +2177,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         isGenerating: false,
         clearCurrentResponder: true,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ChatProvider group response error: $e\n$stackTrace');
       state = state.copyWith(
         isGenerating: false,
         clearCurrentResponder: true,

@@ -245,6 +245,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get attachImage => 'Đính kèm hình ảnh';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Chọn từ thư viện';
 
   @override

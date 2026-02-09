@@ -246,6 +246,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get attachImage => 'Прикрепить изображение';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Выбрать из галереи';
 
   @override

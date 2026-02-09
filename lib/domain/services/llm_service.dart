@@ -928,7 +928,19 @@ class LLMService {
             final json = jsonDecode(line.substring(6)) as Map<String, dynamic>;
             final choices = json['choices'] as List<dynamic>?;
             if (choices != null && choices.isNotEmpty) {
-              final delta = (choices[0] as Map<String, dynamic>)['delta'] as Map<String, dynamic>?;
+              final choice = choices[0] as Map<String, dynamic>;
+              
+              // Check for finish_reason and log the raw data when present
+              final finishReason = choice['finish_reason'];
+              if (finishReason != null) {
+                _log('═══════════════════════════════════════════════════════════════');
+                _log('🏁 STREAM FINISH - finish_reason: $finishReason');
+                _log('───────────────────────────────────────────────────────────────');
+                _log('Raw JSON: ${line.substring(6)}');
+                _log('═══════════════════════════════════════════════════════════════');
+              }
+              
+              final delta = choice['delta'] as Map<String, dynamic>?;
               final content = delta?['content'] as String?;
               if (content != null) {
                 _logStreamChunk(config.provider.name, content, isFirst: isFirst);
@@ -1501,6 +1513,16 @@ class LLMService {
               if (choices != null && choices.isNotEmpty) {
                 final choice = choices[0] as Map<String, dynamic>;
                 final delta = choice['delta'] as Map<String, dynamic>?;
+                
+                // Check for finish_reason and log the raw data when present
+                final finishReason = choice['finish_reason'];
+                if (finishReason != null) {
+                  _log('═══════════════════════════════════════════════════════════════');
+                  _log('🏁 STREAM FINISH - finish_reason: $finishReason');
+                  _log('───────────────────────────────────────────────────────────────');
+                  _log('Raw JSON: ${line.substring(6)}');
+                  _log('═══════════════════════════════════════════════════════════════');
+                }
                 
                 // Check for reasoning_content (OpenAI o1/o3 models)
                 final reasoningContent = delta?['reasoning_content'] as String?;

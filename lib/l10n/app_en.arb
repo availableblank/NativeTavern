@@ -395,6 +395,11 @@
     "description": "Attach image tooltip"
   },
   
+  "formatting": "Formatting",
+  "@formatting": {
+    "description": "Formatting button label in chat input menu"
+  },
+  
   "chooseFromGallery": "Choose from Gallery",
   "@chooseFromGallery": {
     "description": "Choose from gallery option"

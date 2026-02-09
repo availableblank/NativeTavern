@@ -347,10 +347,12 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
                   )
                 : ListView.builder(
                     controller: _scrollController,
+                    reverse: true,  // Show newest logs at the top
                     padding: const EdgeInsets.all(8),
                     itemCount: filteredLogs.length,
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[index];
+                      // Reverse the index to show newest first
+                      final log = filteredLogs[filteredLogs.length - 1 - index];
                       return _LogEntryTile(log: log);
                     },
                   ),
@@ -732,10 +734,12 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
                   )
                 : ListView.builder(
                     controller: _scrollController,
+                    reverse: true,  // Show newest logs at the top
                     padding: const EdgeInsets.all(8),
                     itemCount: filteredLogs.length,
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[index];
+                      // Reverse the index to show newest first
+                      final log = filteredLogs[filteredLogs.length - 1 - index];
                       return _LogEntryTile(log: log);
                     },
                   ),

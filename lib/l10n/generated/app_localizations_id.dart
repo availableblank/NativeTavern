@@ -246,6 +246,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get attachImage => 'Lampirkan Gambar';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Pilih dari Galeri';
 
   @override

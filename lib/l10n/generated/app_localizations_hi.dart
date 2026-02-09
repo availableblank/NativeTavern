@@ -246,6 +246,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get attachImage => 'छवि संलग्न करें';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'गैलरी से चुनें';
 
   @override

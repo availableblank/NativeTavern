@@ -241,6 +241,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get attachImage => '画像を添付';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'ギャラリーから選択';
 
   @override

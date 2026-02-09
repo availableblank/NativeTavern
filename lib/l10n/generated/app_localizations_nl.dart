@@ -246,6 +246,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get attachImage => 'Afbeelding Bijvoegen';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Kies uit Galerij';
 
   @override

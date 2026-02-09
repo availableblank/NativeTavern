@@ -577,6 +577,12 @@ abstract class AppLocalizations {
   /// **'Attach image'**
   String get attachImage;
 
+  /// Formatting button label in chat input menu
+  ///
+  /// In en, this message translates to:
+  /// **'Formatting'**
+  String get formatting;
+
   /// Choose from gallery option
   ///
   /// In en, this message translates to:

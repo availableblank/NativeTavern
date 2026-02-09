@@ -73,11 +73,12 @@ final matchedWorldInfoEntriesProvider = FutureProvider<List<WorldInfoEntry>>((re
   final contextText = messages.map((m) => m.content).join('\n');
 
   // Get enabled world info IDs (same logic as in chat_providers.dart)
+  // NOTE: Only world infos with isGlobal == true are treated as global
+  // World infos with characterId == null but isGlobal == false are NOT auto-included
   final enabledWorldInfoIds = allWorldInfos
       .where((w) => w.enabled && (
           w.isGlobal ||
           w.characterId == character.id ||
-          w.characterId == null ||  // Not linked to any character = available to all
           activeWorldInfoIds.contains(w.id)
       ))
       .map((w) => w.id)

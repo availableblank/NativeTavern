@@ -247,6 +247,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachImage => 'Attach image';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Choose from Gallery';
 
   @override

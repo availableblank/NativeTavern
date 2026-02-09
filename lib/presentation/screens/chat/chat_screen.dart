@@ -11,6 +11,7 @@ import 'package:native_tavern/data/models/chat.dart';
 import 'package:native_tavern/data/models/chat_background.dart';
 import 'package:native_tavern/domain/services/chat_export_service.dart';
 import 'package:native_tavern/domain/services/llm_service.dart';
+import 'package:native_tavern/domain/services/markdown_hotkey_service.dart';
 import 'package:native_tavern/domain/services/slash_command_service.dart';
 import 'package:native_tavern/l10n/generated/app_localizations.dart';
 import 'package:native_tavern/presentation/providers/bookmark_providers.dart';
@@ -60,6 +61,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _showSlashSuggestions = false;
+  bool _showInputMenu = false;  // 控制输入框左侧菜单的显示
   final List<ChatAttachment> _pendingAttachments = [];
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -598,8 +600,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
 
-          // Quick replies bar (above input)
-          _buildQuickReplyBar(chatState),
 
           // Input area
           _buildInputArea(chatState),
@@ -1199,6 +1199,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildInputArea(ActiveChatState chatState) {
+    final quickReplyConfig = ref.watch(quickReplyConfigProvider);
+    final enabledReplies = ref.watch(enabledQuickRepliesProvider);
+    final showQuickReplies = quickReplyConfig.showQuickReplies && 
+                             enabledReplies.isNotEmpty && 
+                             !chatState.isGenerating;
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1214,51 +1220,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             // Pending attachments preview
             if (_pendingAttachments.isNotEmpty)
               _buildAttachmentsPreview(),
-            // Compact markdown toolbar
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  // Image attachment button
-                  IconButton(
-                    icon: const Icon(Icons.image, size: 20),
-                    tooltip: _isDesktop ? 'Attach image' : null, // Hide tooltip on mobile
-                    onPressed: _showAttachmentOptions,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  ),
-                  const SizedBox(width: 4),
-                  MarkdownToolbar(
-                    controller: _messageController,
-                    focusNode: _focusNode,
-                    compact: true,
-                  ),
-                  const SizedBox(width: 8),
-                  // Context usage indicator
-                  const ContextUsageIndicator(),
-                  const Spacer(),
-                  // Hint for keyboard shortcuts - only show on desktop
-                  if (_isDesktop)
-                    Tooltip(
-                      message: '${AppLocalizations.of(context).keyboardShortcuts}\n'
-                          '⌘B - ${AppLocalizations.of(context).bold}\n'
-                          '⌘I - ${AppLocalizations.of(context).italic}\n'
-                          '⌘U - ${AppLocalizations.of(context).underline}\n'
-                          '⌘⇧S - ${AppLocalizations.of(context).strikethrough}\n'
-                          '⌘` - ${AppLocalizations.of(context).inlineCode}\n'
-                          '⌘K - ${AppLocalizations.of(context).link}',
-                      child: Icon(
-                        Icons.keyboard,
-                        size: 16,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Input row
+            // Menu panel (when expanded)
+            if (_showInputMenu)
+              _buildInputMenuPanel(showQuickReplies, chatState),
+            // Input row with menu button
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // Menu button
+                IconButton(
+                  icon: Icon(
+                    _showInputMenu ? Icons.close : Icons.menu,
+                    size: 24,
+                    color: _showInputMenu ? AppTheme.primaryColor : AppTheme.textMuted,
+                  ),
+                  onPressed: () => setState(() => _showInputMenu = !_showInputMenu),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
+                const SizedBox(width: 4),
+                // Input field
                 Expanded(
                   child: MarkdownInputField(
                     controller: _messageController,
@@ -1268,7 +1249,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     hintText: AppLocalizations.of(context).typeMessage,
                     onSubmitted: (_) => _sendMessage(),
                     textInputAction: TextInputAction.send,
-                    showToolbar: false, // We show toolbar above
+                    showToolbar: false,
                     decoration: InputDecoration(
                       hintText: AppLocalizations.of(context).typeMessage,
                       filled: true,
@@ -1306,6 +1287,179 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
+  }
+
+  /// Build the expandable menu panel above the input field
+  Widget _buildInputMenuPanel(bool showQuickReplies, ActiveChatState chatState) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.darkBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.darkDivider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Row 1: Core tools
+          Row(
+            children: [
+              // Image attachment
+              _InputMenuButton(
+                icon: Icons.image,
+                label: AppLocalizations.of(context).attachImage,
+                onTap: () {
+                  _showAttachmentOptions();
+                  setState(() => _showInputMenu = false);
+                },
+              ),
+              const SizedBox(width: 8),
+              // Markdown formatting
+              _InputMenuButton(
+                icon: Icons.text_format,
+                label: AppLocalizations.of(context).formatting,
+                onTap: () => _showFormattingMenu(),
+              ),
+              const SizedBox(width: 8),
+              // Context usage indicator
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.darkCard,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.analytics_outlined, size: 18, color: AppTheme.textMuted),
+                      const SizedBox(width: 8),
+                      const Expanded(child: ContextUsageIndicator()),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Row 2: Quick replies (if enabled)
+          if (showQuickReplies) ...[
+            const SizedBox(height: 12),
+            _buildQuickRepliesInMenu(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Build quick replies inside the menu panel
+  Widget _buildQuickRepliesInMenu() {
+    final enabledReplies = ref.watch(enabledQuickRepliesProvider);
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: enabledReplies.map((reply) => InkWell(
+        onTap: () {
+          _handleQuickReply(reply.message, reply.autoSend);
+          setState(() => _showInputMenu = false);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.darkCard,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.darkDivider),
+          ),
+          child: Text(
+            reply.label,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      )).toList(),
+    );
+  }
+
+  /// Show markdown formatting popup menu
+  void _showFormattingMenu() {
+    // Get the size of the screen
+    final screenSize = MediaQuery.of(context).size;
+    
+    // Position the menu above the input area (near the bottom of the screen)
+    showMenu<MarkdownFormat>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        16,  // left padding
+        screenSize.height - 350,  // show above input area
+        16,  // right padding
+        100,  // bottom padding
+      ),
+      items: [
+        _buildFormattingMenuItem(MarkdownFormat.bold, Icons.format_bold, null),
+        _buildFormattingMenuItem(MarkdownFormat.italic, Icons.format_italic, null),
+        _buildFormattingMenuItem(MarkdownFormat.underline, Icons.format_underline, null),
+        _buildFormattingMenuItem(MarkdownFormat.strikethrough, Icons.strikethrough_s, null),
+        const PopupMenuDivider(),
+        _buildFormattingMenuItem(MarkdownFormat.inlineCode, Icons.code, null),
+        _buildFormattingMenuItem(MarkdownFormat.codeBlock, Icons.integration_instructions, null),
+        const PopupMenuDivider(),
+        _buildFormattingMenuItem(MarkdownFormat.link, Icons.link, null),
+        _buildFormattingMenuItem(MarkdownFormat.quote, Icons.format_quote, null),
+        const PopupMenuDivider(),
+        _buildFormattingMenuItem(MarkdownFormat.bulletList, Icons.format_list_bulleted, null),
+        _buildFormattingMenuItem(MarkdownFormat.numberedList, Icons.format_list_numbered, null),
+      ],
+    ).then((format) {
+      if (format != null) {
+        _applyMarkdownFormat(format);
+      }
+    });
+  }
+
+  PopupMenuItem<MarkdownFormat> _buildFormattingMenuItem(MarkdownFormat format, IconData icon, String? shortcut) {
+    return PopupMenuItem<MarkdownFormat>(
+      value: format,
+      child: Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 12),
+          Text(format.displayName),
+          if (shortcut != null) ...[
+            const Spacer(),
+            Text(
+              shortcut,
+              style: TextStyle(
+                color: AppTheme.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Apply markdown formatting to the input field
+  void _applyMarkdownFormat(MarkdownFormat format) {
+    var currentValue = _messageController.value;
+    if (!currentValue.selection.isValid) {
+      currentValue = currentValue.copyWith(
+        selection: TextSelection.collapsed(offset: currentValue.text.length),
+      );
+      _messageController.value = currentValue;
+    }
+    
+    final newValue = MarkdownHotkeyService.applyFormat(
+      value: currentValue,
+      format: format,
+    );
+    _messageController.value = newValue;
+    _focusNode.requestFocus();
   }
 
   /// Build preview of pending attachments
@@ -2588,6 +2742,48 @@ class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
                     child: Text(l10n.cancel),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Button widget for the input menu panel
+class _InputMenuButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _InputMenuButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.darkCard,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: AppTheme.primaryColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
               ),
             ),
           ],

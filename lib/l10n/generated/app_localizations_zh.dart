@@ -239,6 +239,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get attachImage => '附加图片';
 
   @override
+  String get formatting => '格式化';
+
+  @override
   String get chooseFromGallery => '从相册选择';
 
   @override

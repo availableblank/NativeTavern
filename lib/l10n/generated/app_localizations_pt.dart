@@ -246,6 +246,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get attachImage => 'Anexar imagem';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Escolher da galeria';
 
   @override

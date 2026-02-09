@@ -246,6 +246,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get attachImage => 'Resim Ekle';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'Galeriden Seç';
 
   @override

@@ -1601,15 +1601,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final allWorldInfos = await _ref.read(allWorldInfosProvider.future);
     
     // Filter to get enabled world infos that are either:
-    // 1. Global (isGlobal = true)
+    // 1. Global (isGlobal = true) - explicitly marked as global
     // 2. Linked to this character
-    // 3. Enabled and not linked to any specific character (available to all)
-    // 4. Manually activated via activeWorldInfoIdsProvider
+    // 3. Manually activated via activeWorldInfoIdsProvider
+    // NOTE: World infos with characterId == null but isGlobal == false are NOT included
+    // The user must explicitly enable isGlobal to make a world info available to all characters
     final enabledWorldInfoIds = allWorldInfos
         .where((w) => w.enabled && (
             w.isGlobal ||
             w.characterId == character.id ||
-            w.characterId == null ||  // Not linked to any character = available to all
             activeIds.contains(w.id)
         ))
         .map((w) => w.id)
@@ -1631,15 +1631,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final included = allWorldInfoIds.contains(wi.id);
       final isGlobalMatch = wi.isGlobal;
       final isCharacterMatch = wi.characterId == character.id;
-      final isAvailableToAll = wi.characterId == null;
       final isManuallyActive = activeIds.contains(wi.id);
       
       final status = included ? '✅ INCLUDED' : '❌ EXCLUDED';
       final reasons = <String>[];
       if (!wi.enabled) reasons.add('disabled');
-      if (isGlobalMatch) reasons.add('global');
+      if (isGlobalMatch) reasons.add('global (isGlobal=true)');
       if (isCharacterMatch) reasons.add('linked to this character');
-      if (isAvailableToAll) reasons.add('available to all (no characterId)');
       if (isManuallyActive) reasons.add('manually activated');
       
       debugPrint('║');
@@ -1648,12 +1646,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       debugPrint('║   • Entries: ${wi.entries.length}');
       debugPrint('║   • enabled: ${wi.enabled}');
       debugPrint('║   • isGlobal: ${wi.isGlobal}');
-      debugPrint('║   • characterId: ${wi.characterId ?? "null (available to all)"}');
+      debugPrint('║   • characterId: ${wi.characterId ?? "null (not linked to any character)"}');
       if (reasons.isNotEmpty) {
         debugPrint('║   • Reasons: ${reasons.join(", ")}');
       }
       if (!wi.enabled) {
         debugPrint('║   ⚠️ World Info is DISABLED - will not be used!');
+      }
+      if (!wi.isGlobal && wi.characterId == null && !isManuallyActive) {
+        debugPrint('║   ℹ️ Not global and not linked - enable isGlobal to use with all characters');
       }
     }
     

@@ -239,6 +239,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get attachImage => '이미지 첨부';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => '갤러리에서 선택';
 
   @override

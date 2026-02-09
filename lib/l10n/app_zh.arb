@@ -74,6 +74,7 @@
   "deleteThisMessage": "删除此消息",
   "deleteThisAndAllAfter": "删除此消息及之后的所有消息",
   "attachImage": "附加图片",
+  "formatting": "格式化",
   "chooseFromGallery": "从相册选择",
   "takePhoto": "拍照",
   "failedToPickImage": "选择图片失败：{error}",

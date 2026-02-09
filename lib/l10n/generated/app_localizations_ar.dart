@@ -243,6 +243,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get attachImage => 'إرفاق صورة';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'اختر من المعرض';
 
   @override

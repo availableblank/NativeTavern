@@ -244,6 +244,9 @@ class AppLocalizationsTh extends AppLocalizations {
   String get attachImage => 'แนบรูปภาพ';
 
   @override
+  String get formatting => 'Formatting';
+
+  @override
   String get chooseFromGallery => 'เลือกจากแกลเลอรี';
 
   @override

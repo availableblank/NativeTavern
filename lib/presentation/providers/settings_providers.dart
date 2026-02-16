@@ -382,6 +382,79 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
     state = _defaultConfig();
     _saveConfig();
   }
+
+  /// Get configuration for all providers
+  Future<Map<String, Map<String, dynamic>>> getAllProviderConfigs() async {
+    // Ensure current config is saved first
+    await _saveCurrentProviderConfig();
+    
+    final result = <String, Map<String, dynamic>>{};
+    for (final provider in LLMProvider.values) {
+      // _loadProviderConfig returns {apiKey, apiUrl, model}
+      final config = await _loadProviderConfig(provider);
+      // Ensure we store concrete values, not nulls
+      result[provider.name] = {
+        'apiKey': config['apiKey'],
+        'apiUrl': config['apiUrl'],
+        'model': config['model'],
+      };
+    }
+    return result;
+  }
+
+  /// Restore configuration for all providers
+  Future<void> restoreProviderConfigs(Map<String, Map<String, dynamic>> configs) async {
+    bool currentProviderUpdated = false;
+
+    for (final entry in configs.entries) {
+      try {
+        final providerName = entry.key;
+        final config = entry.value;
+        
+        // Find the provider enum
+        final provider = LLMProvider.values.firstWhere(
+          (p) => p.name == providerName,
+          orElse: () => LLMProvider.openai // Fallback, effectively skips if name not found
+        );
+        
+        if (provider.name != providerName) continue; // Skip if name didn't match exactly
+        
+        final key = _getProviderConfigKey(provider);
+        final jsonStr = jsonEncode(config);
+        
+        // Save to DB
+        await _db.into(_db.globalStates).insert(
+          GlobalStatesCompanion(
+            key: drift.Value(key),
+            value: drift.Value(jsonStr),
+            updatedAt: drift.Value(DateTime.now()),
+          ),
+          mode: drift.InsertMode.insertOrReplace,
+        );
+        
+        // Sync to Prefs
+        await _prefs.setString(key, jsonStr);
+        _log('Restored config for provider ${provider.name}');
+
+        if (provider == state.provider) {
+          currentProviderUpdated = true;
+        }
+      } catch (e) {
+        _log('Failed to restore config for ${entry.key}: $e');
+      }
+    }
+
+    // If the currently active provider was affected, refresh the state
+    if (currentProviderUpdated) {
+      final newConfig = await _loadProviderConfig(state.provider);
+      state = state.copyWith(
+        apiKey: newConfig['apiKey'],
+        apiUrl: newConfig['apiUrl'],
+        model: newConfig['model'],
+      );
+      await _saveConfig();
+    }
+  }
 }
 
 final llmConfigProvider = StateNotifierProvider<LLMConfigNotifier, LLMConfig>((ref) {

@@ -224,7 +224,7 @@ class AIPresetsScreen extends ConsumerWidget {
     if (name == null || name.isEmpty) return;
 
     try {
-      final json = ref.read(aiPresetManagerProvider).exportCurrentSettings(name);
+      final json = await ref.read(aiPresetManagerProvider).exportCurrentSettings(name);
       final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
       final tempDir = await getTemporaryDirectory();
@@ -304,7 +304,7 @@ class AIPresetsScreen extends ConsumerWidget {
     if (result == null) return;
 
     try {
-      final preset = ref.read(aiPresetManagerProvider).createFromCurrentSettings(
+      final preset = await ref.read(aiPresetManagerProvider).createFromCurrentSettings(
             name: result['name']!,
             description: result['description']!.isEmpty ? null : result['description'],
           );
@@ -493,6 +493,11 @@ class _PresetCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 4,
                       children: [
+                        if (preset.provider != null)
+                          _SettingChip(
+                            icon: Icons.cloud,
+                            label: preset.provider!,
+                          ),
                         _SettingChip(
                           icon: Icons.thermostat,
                           label: 'T: ${preset.generationSettings.temperature.toStringAsFixed(1)}',

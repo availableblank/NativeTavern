@@ -7,6 +7,7 @@ import '../../data/models/prompt_manager.dart';
 import 'settings_providers.dart';
 import 'prompt_manager_providers.dart';
 import 'instruct_providers.dart';
+import '../../domain/services/llm_service.dart';
 
 const _customPresetsKey = 'ai_custom_presets';
 const _activePresetIdKey = 'ai_active_preset_id';
@@ -147,6 +148,26 @@ class AIPresetManager {
     llmNotifier.updateSeed(gen.seed);
     llmNotifier.updateStreamEnabled(gen.streamEnabled);
 
+    // Restore ALL provider configurations first
+    if (preset.providerSettings != null) {
+      await llmNotifier.restoreProviderConfigs(preset.providerSettings!);
+    }
+
+    // Then switch the active provider if specified
+    if (preset.provider != null) {
+      try {
+        final provider = LLMProvider.values.firstWhere(
+          (p) => p.name == preset.provider,
+          orElse: () => LLMProvider.openai,
+        );
+        // Only update if different to avoid unnecessary re-inits
+        // But updateProvider handles that check internally too
+        await llmNotifier.updateProvider(provider);
+      } catch (_) {
+        // Ignore invalid provider strings
+      }
+    }
+
     // Apply prompt manager config (reset to default if not present)
     final promptNotifier = _ref.read(promptManagerProvider.notifier);
     if (preset.promptManagerConfig != null) {
@@ -173,13 +194,17 @@ class AIPresetManager {
   }
 
   /// Create a preset from current settings
-  AIPreset createFromCurrentSettings({
+  Future<AIPreset> createFromCurrentSettings({
     required String name,
     String? description,
-  }) {
+  }) async {
     final llmConfig = _ref.read(llmConfigProvider);
+    final llmNotifier = _ref.read(llmConfigProvider.notifier);
     final promptConfig = _ref.read(promptManagerProvider);
     final instructTemplateId = _ref.read(activeInstructTemplateIdProvider);
+
+    // Capture configurations for ALL providers
+    final allProviderConfigs = await llmNotifier.getAllProviderConfigs();
 
     return AIPreset(
       id: const Uuid().v4(),
@@ -210,12 +235,14 @@ class AIPresetManager {
       ),
       promptManagerConfig: promptConfig,
       instructTemplateId: instructTemplateId,
+      provider: llmConfig.provider.name,
+      providerSettings: allProviderConfigs,
     );
   }
 
   /// Export current settings as JSON
-  Map<String, dynamic> exportCurrentSettings(String name) {
-    final preset = createFromCurrentSettings(name: name);
+  Future<Map<String, dynamic>> exportCurrentSettings(String name) async {
+    final preset = await createFromCurrentSettings(name: name);
     return preset.toExportJson();
   }
 }

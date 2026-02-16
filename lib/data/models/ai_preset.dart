@@ -21,6 +21,11 @@ class AIPreset {
   // Instruct Template ID (references built-in or custom template)
   final String? instructTemplateId;
 
+  // Provider Settings
+  final String? provider;
+  // Map of provider name -> {model, apiKey, apiUrl}
+  final Map<String, Map<String, dynamic>>? providerSettings;
+
   const AIPreset({
     required this.id,
     required this.name,
@@ -31,6 +36,8 @@ class AIPreset {
     required this.generationSettings,
     this.promptManagerConfig,
     this.instructTemplateId,
+    this.provider,
+    this.providerSettings,
   });
 
   AIPreset copyWith({
@@ -43,6 +50,8 @@ class AIPreset {
     GenerationPreset? generationSettings,
     PromptManagerConfig? promptManagerConfig,
     String? instructTemplateId,
+    String? provider,
+    Map<String, Map<String, dynamic>>? providerSettings,
   }) {
     return AIPreset(
       id: id ?? this.id,
@@ -54,6 +63,8 @@ class AIPreset {
       generationSettings: generationSettings ?? this.generationSettings,
       promptManagerConfig: promptManagerConfig ?? this.promptManagerConfig,
       instructTemplateId: instructTemplateId ?? this.instructTemplateId,
+      provider: provider ?? this.provider,
+      providerSettings: providerSettings ?? this.providerSettings,
     );
   }
 
@@ -77,6 +88,8 @@ class AIPreset {
         'version': 1,
         'instructTemplateId': instructTemplateId,
         'createdAt': createdAt.toIso8601String(),
+        'provider': provider,
+        'providerSettings': providerSettings,
       },
     };
     return json;
@@ -122,6 +135,8 @@ class AIPreset {
         'generationSettings': generationSettings.toJson(),
         'promptManagerConfig': promptManagerConfig?.toJson(),
         'instructTemplateId': instructTemplateId,
+        'provider': provider,
+        'providerSettings': providerSettings,
       };
 
   factory AIPreset.fromJson(Map<String, dynamic> json) {
@@ -141,6 +156,15 @@ class AIPreset {
             )
           : null,
       instructTemplateId: json['instructTemplateId'] as String?,
+      provider: json['provider'] as String?,
+      providerSettings: (json['providerSettings'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(
+          key,
+          (value as Map<String, dynamic>).map(
+            (k, v) => MapEntry(k, v),
+          ),
+        ),
+      ),
     );
   }
 
@@ -166,6 +190,15 @@ class AIPreset {
               )
             : null,
         instructTemplateId: json['instructTemplateId'] as String?,
+        provider: json['provider'] as String?,
+        providerSettings: (json['providerSettings'] as Map<String, dynamic>?)?.map(
+          (key, value) => MapEntry(
+            key,
+            (value as Map<String, dynamic>).map(
+              (k, v) => MapEntry(k, v),
+            ),
+          ),
+        ),
       );
     }
 
@@ -196,6 +229,33 @@ class AIPreset {
       instructTemplateId = nativeTavernMeta['instructTemplateId'] as String?;
     }
 
+    // Extract connection settings from _native_tavern if available
+    final provider = nativeTavernMeta?['provider'] as String?;
+    
+    Map<String, Map<String, dynamic>>? providerSettings;
+    if (nativeTavernMeta?['providerSettings'] != null) {
+      providerSettings = (nativeTavernMeta!['providerSettings'] as Map<String, dynamic>).map(
+        (key, value) => MapEntry(
+          key,
+          (value as Map<String, dynamic>).map(
+            (k, v) => MapEntry(k, v),
+          ),
+        ),
+      );
+    } else if (nativeTavernMeta?['model'] != null) {
+      // Legacy support: migrate single provider settings to map if present
+      // Assume it belongs to the active 'provider' if set, or just skip
+       if (provider != null) {
+         providerSettings = {
+           provider: {
+             'model': nativeTavernMeta!['model'],
+             'apiKey': nativeTavernMeta['apiKey'],
+             'apiUrl': nativeTavernMeta['apiUrl'],
+           }
+         };
+       }
+    }
+
     // Parse generation settings from root level
     final generationSettings = GenerationPreset.fromJson(json);
 
@@ -215,6 +275,8 @@ class AIPreset {
       generationSettings: generationSettings,
       promptManagerConfig: promptConfig,
       instructTemplateId: instructTemplateId,
+      provider: provider,
+      providerSettings: providerSettings,
     );
   }
 

@@ -61,7 +61,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _showSlashSuggestions = false;
-  bool _showInputMenu = false;  // 控制输入框左侧菜单的显示
+  bool _showInputMenu = false; // 控制输入框左侧菜单的显示
   final List<ChatAttachment> _pendingAttachments = [];
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -76,7 +76,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // This handles cases where world info was updated while not in chat
       refreshContextUsageProviders(ref);
     });
-    
+
     // Listen for text changes to show/hide slash command suggestions
     _messageController.addListener(_onTextChanged);
   }
@@ -117,7 +117,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _scrollToBottomImmediate() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0); // With reverse: true, position 0 is the bottom
+        _scrollController
+            .jumpTo(0); // With reverse: true, position 0 is the bottom
       }
     });
   }
@@ -189,7 +190,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final l10n = AppLocalizations.of(context);
     final llmConfig = ref.read(llmConfigProvider);
     final llmService = ref.read(llmServiceProvider);
-    
+
     // Show loading dialog while fetching models
     showDialog(
       context: context,
@@ -210,19 +211,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
-    
+
     try {
       // Fetch available models
       final models = await llmService.getAvailableModels(llmConfig);
-      
+
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
-      
+
       if (models.isEmpty) {
         _showSnackBar(l10n.noModelsAvailable);
         return;
       }
-      
+
       // Show model selection dialog
       final selectedModel = await showDialog<String>(
         context: context,
@@ -232,7 +233,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           providerName: llmConfig.provider.name,
         ),
       );
-      
+
       if (selectedModel != null && selectedModel != llmConfig.model) {
         ref.read(llmConfigProvider.notifier).updateModel(selectedModel);
         _showSnackBar(l10n.modelChangedTo(selectedModel));
@@ -247,7 +248,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
     final hasAttachments = _pendingAttachments.isNotEmpty;
-    
+
     // Allow sending if there's content OR attachments
     if (content.isEmpty && !hasAttachments) return;
 
@@ -258,7 +259,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     final config = ref.read(llmConfigProvider);
-    
+
     // Check if API is configured
     if (!_isApiConfigured(config)) {
       _showApiConfigurationDialog();
@@ -267,28 +268,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     // Capture attachments before clearing
     final attachments = List<ChatAttachment>.from(_pendingAttachments);
-    
+
     _messageController.clear();
     setState(() {
       _showSlashSuggestions = false;
       _pendingAttachments.clear();
     });
-    
+
     // Hide keyboard on mobile platforms
     _focusNode.unfocus();
-    
+
     await ref.read(activeChatProvider.notifier).sendMessage(
-      content,
-      config,
-      attachments: attachments,
-    );
+          content,
+          config,
+          attachments: attachments,
+        );
     _scrollToBottom();
   }
 
   Future<void> _handleSlashCommand(String input) async {
     final slashService = ref.read(slashCommandServiceProvider);
     final result = slashService.parse(input);
-    
+
     if (!result.isCommand) {
       // Not a command, send as regular message
       final config = ref.read(llmConfigProvider);
@@ -298,29 +299,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
       _messageController.clear();
       setState(() => _showSlashSuggestions = false);
-      
+
       // Hide keyboard on mobile platforms
       _focusNode.unfocus();
-      
+
       await ref.read(activeChatProvider.notifier).sendMessage(input, config);
       _scrollToBottom();
       return;
     }
-    
+
     if (result.error != null) {
       _showCommandError(result.error!);
       return;
     }
-    
+
     final command = result.command!;
     final argument = result.argument;
-    
+
     _messageController.clear();
     setState(() => _showSlashSuggestions = false);
-    
+
     // Hide keyboard on mobile platforms
     _focusNode.unfocus();
-    
+
     await _executeCommand(command, argument);
   }
 
@@ -328,7 +329,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final config = ref.read(llmConfigProvider);
     final chatNotifier = ref.read(activeChatProvider.notifier);
     final chatState = ref.read(activeChatProvider);
-    
+
     switch (command.name) {
       case 'continue':
         if (!_isApiConfigured(config)) {
@@ -338,7 +339,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         await chatNotifier.continueGeneration(config);
         _scrollToBottom();
         break;
-        
+
       case 'regenerate':
         if (!_isApiConfigured(config)) {
           _showApiConfigurationDialog();
@@ -347,42 +348,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         await chatNotifier.regenerateLastMessage(config);
         _scrollToBottom();
         break;
-        
+
       case 'swipe':
         _handleSwipeCommand(argument);
         break;
-        
+
       case 'persona':
         context.go('/personas');
         break;
-        
+
       case 'sys':
         if (argument != null && argument.isNotEmpty) {
           // Send as system/narrator message
           _showSystemMessage(argument);
         }
         break;
-        
+
       case 'bg':
         // TODO: Implement background change
         _showSnackBar('Background feature coming soon');
         break;
-        
+
       case 'help':
         _showHelpDialog(argument);
         break;
-        
+
       case 'clear':
         _showClearConfirmation();
         break;
-        
+
       case 'edit':
-        if (argument != null && argument.isNotEmpty && chatState.messages.isNotEmpty) {
+        if (argument != null &&
+            argument.isNotEmpty &&
+            chatState.messages.isNotEmpty) {
           final lastMessage = chatState.messages.last;
           await chatNotifier.editMessage(lastMessage.id, argument);
         }
         break;
-        
+
       case 'delete':
         if (chatState.messages.isNotEmpty) {
           final count = int.tryParse(argument ?? '1') ?? 1;
@@ -392,7 +395,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           }
         }
         break;
-        
+
       case 'bookmark':
         if (chatState.messages.isNotEmpty) {
           final lastMessage = chatState.messages.last;
@@ -400,7 +403,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _showCreateBookmarkDialog(lastMessage.id, lastIndex);
         }
         break;
-        
+
       case 'note':
         if (argument != null && argument.isNotEmpty) {
           await chatNotifier.updateAuthorNote(argument);
@@ -417,27 +420,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final l10n = AppLocalizations.of(context);
     final chatState = ref.read(activeChatProvider);
     if (chatState.messages.isEmpty) return;
-    
+
     final lastMessage = chatState.messages.last;
     if (lastMessage.swipes.length <= 1) {
       _showSnackBar(l10n.noSwipesAvailable);
       return;
     }
-    
+
     int newIndex = lastMessage.currentSwipeIndex;
-    
+
     if (argument == null || argument.isEmpty || argument == 'right') {
       newIndex = (newIndex + 1) % lastMessage.swipes.length;
     } else if (argument == 'left') {
-      newIndex = (newIndex - 1 + lastMessage.swipes.length) % lastMessage.swipes.length;
+      newIndex = (newIndex - 1 + lastMessage.swipes.length) %
+          lastMessage.swipes.length;
     } else {
       final parsed = int.tryParse(argument);
-      if (parsed != null && parsed >= 1 && parsed <= lastMessage.swipes.length) {
+      if (parsed != null &&
+          parsed >= 1 &&
+          parsed <= lastMessage.swipes.length) {
         newIndex = parsed - 1;
       }
     }
-    
-    ref.read(activeChatProvider.notifier).swipeMessage(lastMessage.id, newIndex);
+
+    ref
+        .read(activeChatProvider.notifier)
+        .swipeMessage(lastMessage.id, newIndex);
   }
 
   void _showSystemMessage(String content) {
@@ -513,13 +521,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _regenerateMessage() async {
     final config = ref.read(llmConfigProvider);
-    
+
     // Check if API is configured
     if (!_isApiConfigured(config)) {
       _showApiConfigurationDialog();
       return;
     }
-    
+
     await ref.read(activeChatProvider.notifier).regenerateLastMessage(config);
     _scrollToBottom();
   }
@@ -529,80 +537,80 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatState = ref.watch(activeChatProvider);
     final llmConfig = ref.watch(llmConfigProvider);
     final isConfigured = _isApiConfigured(llmConfig);
-    
+
     // Scroll to bottom when new messages arrive or when chat finishes loading
     ref.listen(activeChatProvider, (previous, next) {
       // Scroll to bottom when:
       // 1. New messages are added during conversation
       // 2. Chat finishes loading (transitions from loading to loaded with messages)
-      final messageCountChanged = previous?.messages.length != next.messages.length;
+      final messageCountChanged =
+          previous?.messages.length != next.messages.length;
       final loadingFinished = previous?.isLoading == true &&
-                              next.isLoading == false &&
-                              next.messages.isNotEmpty;
-      
+          next.isLoading == false &&
+          next.messages.isNotEmpty;
+
       if (messageCountChanged || loadingFinished) {
         _scrollToBottomImmediate();
       }
     });
 
     return Scaffold(
-        appBar: _buildAppBar(chatState),
-        body: ChatBackgroundWidget(
-          characterId: chatState.character?.id,
-          child: Column(
-        children: [
-          // API not configured banner
-          if (!isConfigured)
-            _buildApiConfigBanner(),
-          
-          // Error banner
-          if (chatState.error != null)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.red.withValues(alpha: 0.2),
-              child: Row(
-                children: [
-                  const Icon(Icons.error, color: Colors.red, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      chatState.error!,
-                      style: const TextStyle(color: Colors.red),
+      appBar: _buildAppBar(chatState),
+      body: ChatBackgroundWidget(
+        characterId: chatState.character?.id,
+        child: Column(
+          children: [
+            // API not configured banner
+            if (!isConfigured) _buildApiConfigBanner(),
+
+            // Error banner
+            if (chatState.error != null)
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.red.withValues(alpha: 0.2),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        chatState.error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: () {
-                      // Clear error
-                    },
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () {
+                        // Clear error
+                      },
+                    ),
+                  ],
+                ),
               ),
+
+            // Messages list
+            Expanded(
+              child: chatState.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : chatState.messages.isEmpty
+                      ? _buildEmptyState()
+                      : _buildMessagesArea(chatState),
             ),
 
-          // Messages list
-          Expanded(
-            child: chatState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : chatState.messages.isEmpty
-                    ? _buildEmptyState()
-                    : _buildMessagesArea(chatState),
-          ),
-
-          // Slash command suggestions
-          if (_showSlashSuggestions)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SlashCommandSuggestions(
-                input: _messageController.text,
-                onSelect: _onSlashCommandSelected,
-                onDismiss: () => setState(() => _showSlashSuggestions = false),
+            // Slash command suggestions
+            if (_showSlashSuggestions)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SlashCommandSuggestions(
+                  input: _messageController.text,
+                  onSelect: _onSlashCommandSelected,
+                  onDismiss: () =>
+                      setState(() => _showSlashSuggestions = false),
+                ),
               ),
-            ),
 
-
-          // Input area
-          _buildInputArea(chatState),
+            // Input area
+            _buildInputArea(chatState),
           ],
         ),
       ),
@@ -616,7 +624,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       color: AppTheme.primaryColor.withValues(alpha: 0.15),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: AppTheme.primaryColor, size: 20),
+          const Icon(Icons.info_outline,
+              color: AppTheme.primaryColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -654,7 +663,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hasAuthorNote = chatState.chat?.authorNoteEnabled == true &&
         (chatState.chat?.authorNote.isNotEmpty ?? false);
     final llmConfig = ref.watch(llmConfigProvider);
-    
+
     return AppBar(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -708,18 +717,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onPressed: () => _showBookmarksDialog(context),
         ),
         // Layout mode toggle (only show when there's a background)
-        if (ref.watch(effectiveBackgroundProvider(chatState.character?.id)).valueOrNull?.type == BackgroundType.image)
+        if (ref
+                .watch(effectiveBackgroundProvider(chatState.character?.id))
+                .valueOrNull
+                ?.type ==
+            BackgroundType.image)
           IconButton(
             icon: Icon(
-              ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode)) == 'bubble'
-                  ? Icons.auto_stories  // Novel mode icon
-                  : Icons.chat_bubble,  // Bubble mode icon
+              ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode)) ==
+                      'bubble'
+                  ? Icons.auto_stories // Novel mode icon
+                  : Icons.chat_bubble, // Bubble mode icon
             ),
             tooltip: '切换布局',
             onPressed: () {
               final currentMode = ref.read(appSettingsProvider).chatLayoutMode;
-              final newMode = currentMode == 'bubble' ? 'visualNovel' : 'bubble';
-              ref.read(appSettingsProvider.notifier).updateChatLayoutMode(newMode);
+              final newMode =
+                  currentMode == 'bubble' ? 'visualNovel' : 'bubble';
+              ref
+                  .read(appSettingsProvider.notifier)
+                  .updateChatLayoutMode(newMode);
             },
           ),
         if (chatState.messages.isNotEmpty &&
@@ -751,7 +768,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 subtitle: Text(
                   hasAuthorNote ? l10n.enabled : l10n.disabled,
                   style: TextStyle(
-                    color: hasAuthorNote ? AppTheme.accentColor : AppTheme.textMuted,
+                    color: hasAuthorNote
+                        ? AppTheme.accentColor
+                        : AppTheme.textMuted,
                     fontSize: 12,
                   ),
                 ),
@@ -761,7 +780,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             PopupMenuItem(
               value: 'bookmarks',
               child: ListTile(
-                leading: const Icon(Icons.bookmark, color: AppTheme.accentColor),
+                leading:
+                    const Icon(Icons.bookmark, color: AppTheme.accentColor),
                 title: Text(l10n.bookmarks),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -823,7 +843,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildEmptyState() {
     final l10n = AppLocalizations.of(context);
     final character = ref.read(activeChatProvider).character;
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -860,16 +880,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildMessagesArea(ActiveChatState chatState) {
-    final layoutMode = ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode));
-    final backgroundAsync = ref.watch(effectiveBackgroundProvider(chatState.character?.id));
+    final layoutMode =
+        ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode));
+    final backgroundAsync =
+        ref.watch(effectiveBackgroundProvider(chatState.character?.id));
     final background = backgroundAsync.valueOrNull ?? ChatBackground.none;
     final hasBackground = background.type == BackgroundType.image;
-    
+
     // Only use visual novel mode when there's an image background
     if (layoutMode == 'visualNovel' && hasBackground) {
       return _buildVisualNovelView(chatState);
     }
-    
+
     return _buildMessageList(chatState);
   }
 
@@ -883,20 +905,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           messages: chatState.messages,
           character: chatState.character,
           isGenerating: chatState.isGenerating,
-          onLongPress: (message) => _showMessageOptionsForVisualNovel(context, message, chatState),
+          onLongPress: (message) =>
+              _showMessageOptionsForVisualNovel(context, message, chatState),
           onSwipe: (swipeIndex, messageId) {
-            ref.read(activeChatProvider.notifier).swipeMessage(messageId, swipeIndex);
+            ref
+                .read(activeChatProvider.notifier)
+                .swipeMessage(messageId, swipeIndex);
           },
         ),
       ],
     );
   }
 
-  void _showMessageOptionsForVisualNovel(BuildContext context, ChatMessage message, ActiveChatState chatState) {
+  void _showMessageOptionsForVisualNovel(
+      BuildContext context, ChatMessage message, ActiveChatState chatState) {
     final l10n = AppLocalizations.of(context);
     final config = ref.read(llmConfigProvider);
     final isAssistant = message.role == MessageRole.assistant;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.darkCard,
@@ -925,7 +951,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 title: Text(l10n.regenerate),
                 onTap: () {
                   Navigator.pop(context);
-                  ref.read(activeChatProvider.notifier).regenerateMessage(message.id, config);
+                  ref
+                      .read(activeChatProvider.notifier)
+                      .regenerateMessage(message.id, config);
                 },
               ),
             ListTile(
@@ -933,12 +961,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               title: Text(l10n.continueFromHere),
               onTap: () {
                 Navigator.pop(context);
-                ref.read(activeChatProvider.notifier).continueFromMessage(message.id, config);
+                ref
+                    .read(activeChatProvider.notifier)
+                    .continueFromMessage(message.id, config);
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
+              title:
+                  Text(l10n.delete, style: const TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteConfirmation(message.id);
@@ -952,13 +983,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildMessageList(ActiveChatState chatState) {
     final config = ref.read(llmConfigProvider);
-    final backgroundAsync = ref.watch(effectiveBackgroundProvider(chatState.character?.id));
+    final backgroundAsync =
+        ref.watch(effectiveBackgroundProvider(chatState.character?.id));
     final background = backgroundAsync.valueOrNull ?? ChatBackground.none;
     final hasBackground = background.type != BackgroundType.none;
-    
+
     return ListView.builder(
       controller: _scrollController,
-      reverse: true, // Build from bottom up - newest messages at bottom, always visible
+      reverse:
+          true, // Build from bottom up - newest messages at bottom, always visible
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: chatState.messages.length,
       itemBuilder: (context, index) {
@@ -967,13 +1000,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final actualIndex = chatState.messages.length - 1 - index;
         final message = chatState.messages[actualIndex];
         final isLast = actualIndex == chatState.messages.length - 1;
-        
-        final layoutMode = ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode));
-        
+
+        final layoutMode =
+            ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode));
+
         return _MessageBubble(
           key: ValueKey(message.id),
           message: message,
-          messageIndex: actualIndex, // Use actual index for bookmarks and other features
+          messageIndex:
+              actualIndex, // Use actual index for bookmarks and other features
           chatId: widget.chatId,
           character: chatState.character,
           isGenerating: isLast && chatState.isGenerating,
@@ -1033,19 +1068,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  void _showImageGenerationDialog(ChatMessage message, Character? character) async {
+  void _showImageGenerationDialog(
+      ChatMessage message, Character? character) async {
     final result = await ImageGenerationDialog.show(
       context,
       basePrompt: message.content,
       characterName: character?.name,
-      mode: message.role == MessageRole.assistant 
-          ? ImageGenMode.lastMessage 
+      mode: message.role == MessageRole.assistant
+          ? ImageGenMode.lastMessage
           : ImageGenMode.free,
     );
-    
+
     if (result != null && result.images.isNotEmpty && mounted) {
       final l10n = AppLocalizations.of(context);
-      
+
       // Save each image to local storage and add as attachment to the message
       try {
         final appDocDir = await getApplicationDocumentsDirectory();
@@ -1053,17 +1089,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (!await imagesDir.exists()) {
           await imagesDir.create(recursive: true);
         }
-        
+
         for (int i = 0; i < result.images.length; i++) {
           final imageBytes = result.images[i];
           final imageId = const Uuid().v4();
           final fileName = '${imageId}.${result.format}';
           final filePath = p.join(imagesDir.path, fileName);
-          
+
           // Save image to file
           final file = File(filePath);
           await file.writeAsBytes(imageBytes);
-          
+
           // Create attachment
           final attachment = ChatAttachment(
             id: imageId,
@@ -1071,16 +1107,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             mimeType: 'image/${result.format}',
             sizeBytes: imageBytes.length,
           );
-          
+
           // Add attachment to message
           await ref.read(activeChatProvider.notifier).addAttachmentToMessage(
-            message.id,
-            attachment,
-          );
+                message.id,
+                attachment,
+              );
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${l10n.generationComplete} - ${result.images.length} image(s) added')),
+          SnackBar(
+              content: Text(
+                  '${l10n.generationComplete} - ${result.images.length} image(s) added')),
         );
       } catch (e) {
         debugPrint('Failed to save generated image: $e');
@@ -1149,7 +1187,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              ref.read(activeChatProvider.notifier).deleteMessageAndAfter(messageId);
+              ref
+                  .read(activeChatProvider.notifier)
+                  .deleteMessageAndAfter(messageId);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(l10n.deleteAll),
@@ -1161,12 +1201,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildQuickReplyBar(ActiveChatState chatState) {
     final quickReplyConfig = ref.watch(quickReplyConfigProvider);
-    
+
     // Don't show if generating or if quick replies are disabled
     if (chatState.isGenerating || !quickReplyConfig.showQuickReplies) {
       return const SizedBox.shrink();
     }
-    
+
     return QuickReplyBar(
       onQuickReply: (message, autoSend) => _handleQuickReply(message, autoSend),
     );
@@ -1174,13 +1214,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleQuickReply(String message, bool autoSend) {
     final config = ref.read(llmConfigProvider);
-    
+
     // Check if API is configured
     if (!_isApiConfigured(config)) {
       _showApiConfigurationDialog();
       return;
     }
-    
+
     if (message.isEmpty) {
       // Empty message means "continue" - just generate without user message
       _focusNode.unfocus(); // Hide keyboard
@@ -1201,10 +1241,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildInputArea(ActiveChatState chatState) {
     final quickReplyConfig = ref.watch(quickReplyConfigProvider);
     final enabledReplies = ref.watch(enabledQuickRepliesProvider);
-    final showQuickReplies = quickReplyConfig.showQuickReplies && 
-                             enabledReplies.isNotEmpty && 
-                             !chatState.isGenerating;
-    
+    final showQuickReplies = quickReplyConfig.showQuickReplies &&
+        enabledReplies.isNotEmpty &&
+        !chatState.isGenerating;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1218,8 +1258,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Pending attachments preview
-            if (_pendingAttachments.isNotEmpty)
-              _buildAttachmentsPreview(),
+            if (_pendingAttachments.isNotEmpty) _buildAttachmentsPreview(),
             // Menu panel (when expanded)
             if (_showInputMenu)
               _buildInputMenuPanel(showQuickReplies, chatState),
@@ -1232,11 +1271,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   icon: Icon(
                     _showInputMenu ? Icons.close : Icons.menu,
                     size: 24,
-                    color: _showInputMenu ? AppTheme.primaryColor : AppTheme.textMuted,
+                    color: _showInputMenu
+                        ? AppTheme.primaryColor
+                        : AppTheme.textMuted,
                   ),
-                  onPressed: () => setState(() => _showInputMenu = !_showInputMenu),
+                  onPressed: () =>
+                      setState(() => _showInputMenu = !_showInputMenu),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  constraints:
+                      const BoxConstraints(minWidth: 40, minHeight: 40),
                 ),
                 const SizedBox(width: 4),
                 // Input field
@@ -1269,7 +1312,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 // Show stop button when generating, send button otherwise
                 if (chatState.isGenerating)
                   IconButton.filled(
-                    onPressed: () => ref.read(activeChatProvider.notifier).cancelGeneration(),
+                    onPressed: () => ref
+                        .read(activeChatProvider.notifier)
+                        .cancelGeneration(),
                     icon: const Icon(Icons.stop_circle),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -1290,7 +1335,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Build the expandable menu panel above the input field
-  Widget _buildInputMenuPanel(bool showQuickReplies, ActiveChatState chatState) {
+  Widget _buildInputMenuPanel(
+      bool showQuickReplies, ActiveChatState chatState) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       margin: const EdgeInsets.only(bottom: 12),
@@ -1327,14 +1373,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               // Context usage indicator
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppTheme.darkCard,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.analytics_outlined, size: 18, color: AppTheme.textMuted),
+                      Icon(Icons.analytics_outlined,
+                          size: 18, color: AppTheme.textMuted),
                       const SizedBox(width: 8),
                       const Expanded(child: ContextUsageIndicator()),
                     ],
@@ -1356,32 +1404,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// Build quick replies inside the menu panel
   Widget _buildQuickRepliesInMenu() {
     final enabledReplies = ref.watch(enabledQuickRepliesProvider);
-    
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: enabledReplies.map((reply) => InkWell(
-        onTap: () {
-          _handleQuickReply(reply.message, reply.autoSend);
-          setState(() => _showInputMenu = false);
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppTheme.darkCard,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.darkDivider),
-          ),
-          child: Text(
-            reply.label,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ),
-      )).toList(),
+      children: enabledReplies
+          .map((reply) => InkWell(
+                onTap: () {
+                  _handleQuickReply(reply.message, reply.autoSend);
+                  setState(() => _showInputMenu = false);
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.darkCard,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.darkDivider),
+                  ),
+                  child: Text(
+                    reply.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ))
+          .toList(),
     );
   }
 
@@ -1389,30 +1440,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showFormattingMenu() {
     // Get the size of the screen
     final screenSize = MediaQuery.of(context).size;
-    
+
     // Position the menu above the input area (near the bottom of the screen)
     showMenu<MarkdownFormat>(
       context: context,
       position: RelativeRect.fromLTRB(
-        16,  // left padding
-        screenSize.height - 350,  // show above input area
-        16,  // right padding
-        100,  // bottom padding
+        16, // left padding
+        screenSize.height - 350, // show above input area
+        16, // right padding
+        100, // bottom padding
       ),
       items: [
         _buildFormattingMenuItem(MarkdownFormat.bold, Icons.format_bold, null),
-        _buildFormattingMenuItem(MarkdownFormat.italic, Icons.format_italic, null),
-        _buildFormattingMenuItem(MarkdownFormat.underline, Icons.format_underline, null),
-        _buildFormattingMenuItem(MarkdownFormat.strikethrough, Icons.strikethrough_s, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.italic, Icons.format_italic, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.underline, Icons.format_underline, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.strikethrough, Icons.strikethrough_s, null),
         const PopupMenuDivider(),
         _buildFormattingMenuItem(MarkdownFormat.inlineCode, Icons.code, null),
-        _buildFormattingMenuItem(MarkdownFormat.codeBlock, Icons.integration_instructions, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.codeBlock, Icons.integration_instructions, null),
         const PopupMenuDivider(),
         _buildFormattingMenuItem(MarkdownFormat.link, Icons.link, null),
-        _buildFormattingMenuItem(MarkdownFormat.quote, Icons.format_quote, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.quote, Icons.format_quote, null),
         const PopupMenuDivider(),
-        _buildFormattingMenuItem(MarkdownFormat.bulletList, Icons.format_list_bulleted, null),
-        _buildFormattingMenuItem(MarkdownFormat.numberedList, Icons.format_list_numbered, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.bulletList, Icons.format_list_bulleted, null),
+        _buildFormattingMenuItem(
+            MarkdownFormat.numberedList, Icons.format_list_numbered, null),
       ],
     ).then((format) {
       if (format != null) {
@@ -1421,7 +1479,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  PopupMenuItem<MarkdownFormat> _buildFormattingMenuItem(MarkdownFormat format, IconData icon, String? shortcut) {
+  PopupMenuItem<MarkdownFormat> _buildFormattingMenuItem(
+      MarkdownFormat format, IconData icon, String? shortcut) {
     return PopupMenuItem<MarkdownFormat>(
       value: format,
       child: Row(
@@ -1453,7 +1512,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
       _messageController.value = currentValue;
     }
-    
+
     final newValue = MarkdownHotkeyService.applyFormat(
       value: currentValue,
       format: format,
@@ -1487,7 +1546,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       width: 80,
                       height: 80,
                       color: AppTheme.darkCard,
-                      child: const Icon(Icons.broken_image, color: AppTheme.textMuted),
+                      child: const Icon(Icons.broken_image,
+                          color: AppTheme.textMuted),
                     ),
                   ),
                 ),
@@ -1525,14 +1585,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// Show attachment options (camera or gallery/files)
   void _showAttachmentOptions() {
     debugPrint('📎 _showAttachmentOptions called, isDesktop: $_isDesktop');
-    
+
     // On desktop, directly open file picker
     if (_isDesktop) {
       debugPrint('📎 Opening file picker for desktop...');
       _pickImageFromFiles();
       return;
     }
-    
+
     final l10n = AppLocalizations.of(context);
     // On mobile, show options sheet
     showModalBottomSheet(
@@ -1556,7 +1616,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: AppTheme.primaryColor),
+              leading:
+                  const Icon(Icons.photo_library, color: AppTheme.primaryColor),
               title: Text(l10n.chooseFromGallery),
               onTap: () {
                 Navigator.pop(context);
@@ -1564,7 +1625,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: AppTheme.accentColor),
+              leading:
+                  const Icon(Icons.camera_alt, color: AppTheme.accentColor),
               title: Text(l10n.takePhoto),
               onTap: () {
                 Navigator.pop(context);
@@ -1589,9 +1651,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         allowMultiple: true,
         dialogTitle: l10n.selectImages,
       );
-      
+
       debugPrint('📎 FilePicker result: $result');
-      
+
       if (result != null && result.files.isNotEmpty) {
         debugPrint('📎 Got ${result.files.length} files');
         for (final file in result.files) {
@@ -1619,7 +1681,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         maxHeight: 2048,
         imageQuality: 85,
       );
-      
+
       for (final image in images) {
         await _addAttachmentFromXFile(image);
       }
@@ -1638,7 +1700,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         maxHeight: 2048,
         imageQuality: 85,
       );
-      
+
       if (image != null) {
         await _addAttachmentFromXFile(image);
       }
@@ -1653,28 +1715,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       // Copy file to app's documents directory for persistence
       final appDir = await getApplicationDocumentsDirectory();
-      final attachmentsDir = Directory(p.join(appDir.path, 'NativeTavern', 'attachments'));
+      final attachmentsDir =
+          Directory(p.join(appDir.path, 'NativeTavern', 'attachments'));
       await attachmentsDir.create(recursive: true);
-      
+
       final uuid = const Uuid();
       final extension = p.extension(filePath);
       final newFileName = '${uuid.v4()}$extension';
       final newPath = p.join(attachmentsDir.path, newFileName);
-      
+
       // Copy file
       final sourceFile = File(filePath);
       await sourceFile.copy(newPath);
-      
+
       // Get file info
       final fileInfo = await File(newPath).stat();
-      
+
       final attachment = ChatAttachment(
         id: uuid.v4(),
         path: newPath,
         mimeType: _getMimeType(extension),
         sizeBytes: fileInfo.size,
       );
-      
+
       setState(() {
         _pendingAttachments.add(attachment);
       });
@@ -1689,28 +1752,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       // Copy file to app's documents directory for persistence
       final appDir = await getApplicationDocumentsDirectory();
-      final attachmentsDir = Directory(p.join(appDir.path, 'NativeTavern', 'attachments'));
+      final attachmentsDir =
+          Directory(p.join(appDir.path, 'NativeTavern', 'attachments'));
       await attachmentsDir.create(recursive: true);
-      
+
       final uuid = const Uuid();
       final extension = p.extension(file.path);
       final newFileName = '${uuid.v4()}$extension';
       final newPath = p.join(attachmentsDir.path, newFileName);
-      
+
       // Copy file
       final bytes = await file.readAsBytes();
       await File(newPath).writeAsBytes(bytes);
-      
+
       // Get file info
       final fileInfo = await File(newPath).stat();
-      
+
       final attachment = ChatAttachment(
         id: uuid.v4(),
         path: newPath,
         mimeType: _getMimeType(extension),
         sizeBytes: fileInfo.size,
       );
-      
+
       setState(() {
         _pendingAttachments.add(attachment);
       });
@@ -1883,7 +1947,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _importChat() async {
     final l10n = AppLocalizations.of(context);
     final exportService = ref.read(chatExportServiceProvider);
-    
+
     try {
       final result = await exportService.importFromFile();
       if (result == null) {
@@ -1893,7 +1957,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Show confirmation dialog with import details
       if (!mounted) return;
-      
+
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1905,7 +1969,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Text('${l10n.character}: ${result.characterName}'),
               Text('${l10n.user}: ${result.userName}'),
               Text('${l10n.messages}: ${result.messages.length}'),
-              Text('${l10n.date}: ${result.createDate.toString().split('.')[0]}'),
+              Text(
+                  '${l10n.date}: ${result.createDate.toString().split('.')[0]}'),
               if (result.authorNote != null && result.authorNote!.isNotEmpty)
                 Text('${l10n.hasAuthorsNote}: ${l10n.yes}'),
               const SizedBox(height: 16),
@@ -1939,19 +2004,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Add imported messages
       final chatNotifier = ref.read(activeChatProvider.notifier);
-      int importedCount = 0;
-      
-      for (final importedMsg in result.messages) {
-        final id = DateTime.now().millisecondsSinceEpoch.toString() +
-            (DateTime.now().microsecond % 1000).toString().padLeft(3, '0') +
-            importedCount.toString();
-        
-        final message = importedMsg.toChatMessage(chatState.chat!.id, id);
-        
-        // We need to add messages through the repository
-        // For now, show a message that import is not fully implemented
-        importedCount++;
-      }
+      final uuid = const Uuid();
+      final importedCount = await chatNotifier.importMessages(
+        result.messages.map((importedMsg) {
+          return importedMsg.toChatMessage(chatState.chat!.id, uuid.v4());
+        }).toList(),
+      );
 
       // Update author's note if present
       if (result.authorNote != null && result.authorNote!.isNotEmpty) {
@@ -1964,10 +2022,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       }
 
-      _showSnackBar(l10n.importedMessages(result.messages.length));
-      
-      // Reload chat to show imported messages
-      await chatNotifier.loadChat(chatState.chat!.id);
+      _showSnackBar(l10n.importedMessages(importedCount));
       _scrollToBottom();
     } catch (e) {
       _showSnackBar(l10n.importFailed(e.toString()));
@@ -2110,7 +2165,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                       ? Colors.white
                                       : AppTheme.textPrimary,
                                   selectable: true,
-                                  onLongPress: () => _showMessageOptions(context),
+                                  onLongPress: () =>
+                                      _showMessageOptions(context),
                                   isStreaming: widget.isGenerating,
                                   messageId: widget.message.id,
                                 ),
@@ -2118,7 +2174,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                           ),
                   ),
                 ),
-                
+
                 // Swipe controls
                 if (hasSwipes && !widget.isGenerating)
                   Padding(
@@ -2138,9 +2194,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
                         ),
                         Text(
                           '${widget.message.currentSwipeIndex + 1}/${widget.message.swipes.length}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textMuted,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.textMuted,
+                                  ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.chevron_right, size: 20),
@@ -2167,7 +2224,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
 
   BoxDecoration _buildMessageDecoration(bool isUser) {
     final isTransparent = widget.layoutMode == 'transparent';
-    
+
     if (isTransparent && widget.hasBackground) {
       // Transparent mode: very light background with blur effect
       return BoxDecoration(
@@ -2194,8 +2251,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
       // Classic bubble mode
       return BoxDecoration(
         color: isUser
-            ? (widget.hasBackground ? AppTheme.accentColor.withValues(alpha: widget.bubbleOpacity) : AppTheme.accentColor)
-            : (widget.hasBackground ? AppTheme.darkCard.withValues(alpha: widget.bubbleOpacity) : AppTheme.darkCard),
+            ? (widget.hasBackground
+                ? AppTheme.accentColor.withValues(alpha: widget.bubbleOpacity)
+                : AppTheme.accentColor)
+            : (widget.hasBackground
+                ? AppTheme.darkCard.withValues(alpha: widget.bubbleOpacity)
+                : AppTheme.darkCard),
         borderRadius: BorderRadius.circular(16),
       );
     }
@@ -2225,7 +2286,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
     if (reasoning == null || reasoning.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     // During streaming, show the streaming version
     if (widget.isGenerating && widget.isLast) {
       return StreamingReasoningWidget(
@@ -2234,7 +2295,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
         label: l10n.thinking,
       );
     }
-    
+
     // For completed messages, show the collapsible version
     return ReasoningWidget(
       reasoning: reasoning,
@@ -2247,7 +2308,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   Widget _buildAttachments() {
     final attachments = widget.message.attachments;
     if (attachments.isEmpty) return const SizedBox.shrink();
-    
+
     // For single image, show larger preview
     if (attachments.length == 1) {
       return Padding(
@@ -2268,7 +2329,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   width: 150,
                   height: 100,
                   color: AppTheme.darkBackground,
-                  child: const Icon(Icons.broken_image, color: AppTheme.textMuted),
+                  child:
+                      const Icon(Icons.broken_image, color: AppTheme.textMuted),
                 ),
               ),
             ),
@@ -2276,7 +2338,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
         ),
       );
     }
-    
+
     // For multiple images, show a grid
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -2297,7 +2359,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   width: 80,
                   height: 80,
                   color: AppTheme.darkBackground,
-                  child: const Icon(Icons.broken_image, size: 20, color: AppTheme.textMuted),
+                  child: const Icon(Icons.broken_image,
+                      size: 20, color: AppTheme.textMuted),
                 ),
               ),
             ),
@@ -2326,7 +2389,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       width: 200,
                       height: 200,
                       color: AppTheme.darkCard,
-                      child: const Icon(Icons.broken_image, size: 48, color: AppTheme.textMuted),
+                      child: const Icon(Icons.broken_image,
+                          size: 48, color: AppTheme.textMuted),
                     ),
                   ),
                 ),
@@ -2382,7 +2446,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   void _showMessageOptions(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isAssistant = widget.message.role == MessageRole.assistant;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.darkCard,
@@ -2404,7 +2468,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
               ),
             ),
             const SizedBox(height: 8),
-            
+
             // Copy
             ListTile(
               leading: const Icon(Icons.copy, color: AppTheme.textSecondary),
@@ -2420,7 +2484,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 );
               },
             ),
-            
+
             // Edit
             ListTile(
               leading: const Icon(Icons.edit, color: AppTheme.textSecondary),
@@ -2431,11 +2495,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 setState(() => _isEditing = true);
               },
             ),
-            
+
             // Regenerate (only for assistant messages)
             if (isAssistant && widget.onRegenerate != null)
               ListTile(
-                leading: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+                leading:
+                    const Icon(Icons.refresh, color: AppTheme.primaryColor),
                 title: Text(l10n.regenerate),
                 subtitle: Text(l10n.generateNewResponse),
                 onTap: () {
@@ -2443,10 +2508,11 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   widget.onRegenerate!();
                 },
               ),
-            
+
             // Continue from here
             ListTile(
-              leading: const Icon(Icons.play_arrow, color: AppTheme.accentColor),
+              leading:
+                  const Icon(Icons.play_arrow, color: AppTheme.accentColor),
               title: Text(l10n.continueFromHere),
               subtitle: Text(
                 widget.message.role == MessageRole.user
@@ -2458,10 +2524,11 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 widget.onContinueFromHere();
               },
             ),
-            
+
             // Create bookmark
             ListTile(
-              leading: const Icon(Icons.bookmark_add, color: AppTheme.accentColor),
+              leading:
+                  const Icon(Icons.bookmark_add, color: AppTheme.accentColor),
               title: Text(l10n.createBookmark),
               subtitle: Text(l10n.saveAsCheckpoint),
               onTap: () {
@@ -2469,20 +2536,21 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 widget.onCreateBookmark();
               },
             ),
-            
+
             // Generate image (if enabled)
             if (widget.onGenerateImage != null)
               ListTile(
-                leading: const Icon(Icons.auto_awesome, color: AppTheme.primaryColor),
+                leading: const Icon(Icons.auto_awesome,
+                    color: AppTheme.primaryColor),
                 title: Text(l10n.generateImagesUsingAi),
                 onTap: () {
                   Navigator.pop(context);
                   widget.onGenerateImage!();
                 },
               ),
-            
+
             const Divider(),
-            
+
             // Delete this message
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.orange),
@@ -2492,7 +2560,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 widget.onDelete();
               },
             ),
-            
+
             // Delete this and all after
             if (!widget.isLast)
               ListTile(
@@ -2506,7 +2574,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   widget.onDeleteAndAfter();
                 },
               ),
-            
+
             const SizedBox(height: 8),
           ],
         ),
@@ -2550,10 +2618,9 @@ class _TypingIndicatorState extends State<_TypingIndicator>
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (index) {
             final delay = index * 0.2;
-            final animationValue = 
-                ((_controller.value + delay) % 1.0);
+            final animationValue = ((_controller.value + delay) % 1.0);
             final size = 4.0 + (animationValue * 4.0);
-            
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Container(
@@ -2662,7 +2729,7 @@ class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
                 ],
               ),
             ),
-            
+
             // Search field
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2685,9 +2752,9 @@ class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Model list
             Flexible(
               child: _filteredModels.isEmpty
@@ -2706,22 +2773,31 @@ class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
                       itemBuilder: (context, index) {
                         final model = _filteredModels[index];
                         final isSelected = model == widget.currentModel;
-                        
+
                         return ListTile(
                           leading: Icon(
-                            isSelected ? Icons.check_circle : Icons.circle_outlined,
-                            color: isSelected ? AppTheme.accentColor : AppTheme.textMuted,
+                            isSelected
+                                ? Icons.check_circle
+                                : Icons.circle_outlined,
+                            color: isSelected
+                                ? AppTheme.accentColor
+                                : AppTheme.textMuted,
                             size: 20,
                           ),
                           title: Text(
                             model,
                             style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? AppTheme.accentColor : AppTheme.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppTheme.accentColor
+                                  : AppTheme.textPrimary,
                             ),
                           ),
                           selected: isSelected,
-                          selectedTileColor: AppTheme.accentColor.withValues(alpha: 0.1),
+                          selectedTileColor:
+                              AppTheme.accentColor.withValues(alpha: 0.1),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -2730,7 +2806,7 @@ class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
                       },
                     ),
             ),
-            
+
             // Actions
             Padding(
               padding: const EdgeInsets.all(16),

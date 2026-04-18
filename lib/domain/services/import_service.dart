@@ -16,23 +16,27 @@ class ImportService {
   Future<Character> importFromPng(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
-    
+    return importFromPngBytes(bytes);
+  }
+
+  /// Import character from PNG bytes (extracts embedded JSON from tEXt chunk)
+  Future<Character> importFromPngBytes(Uint8List bytes) async {
     // Extract character data from PNG tEXt chunk
     final json = _extractPngTextChunk(bytes, 'chara');
     if (json == null) {
       throw Exception('No character data found in PNG');
     }
-    
+
     // Decode base64 and parse JSON
     final decoded = utf8.decode(base64Decode(json));
     final data = jsonDecode(decoded) as Map<String, dynamic>;
-    
+
     // Parse character from JSON
     final character = _parseCharacterJson(data);
-    
+
     // Save the avatar
     final avatarPath = await _saveAvatar(character.id, bytes);
-    
+
     return character.copyWith(
       assets: CharacterAssets(avatarPath: avatarPath),
     );

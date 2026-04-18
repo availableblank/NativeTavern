@@ -44,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
                     icon: const Icon(Icons.forum),
                     label: const Text('Discord'),
                     onPressed: () => launchUrl(
-                      Uri.parse('https://discord.gg/nativetavern'),
+                      Uri.parse('https://discord.com/invite/URQvW2FvZa'),
                       mode: LaunchMode.externalApplication,
                     ),
                   ),

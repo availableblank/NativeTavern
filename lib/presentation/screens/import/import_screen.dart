@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:native_tavern/data/models/character.dart';
 import 'package:native_tavern/data/models/world_info.dart';
 import 'package:native_tavern/data/repositories/world_info_repository.dart';
 import 'package:native_tavern/domain/services/import_service.dart';
+import 'package:native_tavern/domain/services/url_import_service.dart';
 import 'package:native_tavern/presentation/providers/character_providers.dart';
 import 'package:native_tavern/presentation/theme/app_theme.dart';
 import 'package:native_tavern/l10n/generated/app_localizations.dart';
@@ -17,13 +20,20 @@ final importServiceProvider = Provider<ImportService>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
 
-/// Import result for a single file
+/// URL import service provider
+final urlImportServiceProvider = Provider<UrlImportService>((ref) {
+  final importService = ref.watch(importServiceProvider);
+  return UrlImportService(importService);
+});
+
+/// Import result for a single file or URL
 class ImportResult {
   final String fileName;
   final String filePath;
   final Character? character;
   final String? error;
   final bool isProcessing;
+  final UrlSource? urlSource;
 
   const ImportResult({
     required this.fileName,
@@ -31,12 +41,14 @@ class ImportResult {
     this.character,
     this.error,
     this.isProcessing = false,
+    this.urlSource,
   });
 
   ImportResult copyWith({
     Character? character,
     String? error,
     bool? isProcessing,
+    UrlSource? urlSource,
   }) {
     return ImportResult(
       fileName: fileName,
@@ -44,6 +56,7 @@ class ImportResult {
       character: character ?? this.character,
       error: error,
       isProcessing: isProcessing ?? this.isProcessing,
+      urlSource: urlSource ?? this.urlSource,
     );
   }
 }
@@ -88,9 +101,10 @@ class ImportState {
 /// Import state notifier
 class ImportNotifier extends StateNotifier<ImportState> {
   final ImportService _importService;
+  final UrlImportService _urlImportService;
   final ImagePicker _imagePicker = ImagePicker();
 
-  ImportNotifier(this._importService) : super(const ImportState());
+  ImportNotifier(this._importService, this._urlImportService) : super(const ImportState());
 
   Future<void> pickFile() async {
     try {
@@ -204,6 +218,58 @@ class ImportNotifier extends StateNotifier<ImportState> {
     state = state.copyWith(isLoading: false);
   }
 
+  Future<void> importFromUrl(String url) async {
+    if (url.trim().isEmpty) return;
+
+    final source = _urlImportService.identifySource(url);
+    final sourceName = _urlImportService.getSourceDisplayName(source);
+
+    final results = [
+      ImportResult(
+        fileName: sourceName,
+        filePath: url,
+        isProcessing: true,
+        urlSource: source,
+      ),
+    ];
+
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      results: results,
+      totalFiles: 1,
+      processedFiles: 0,
+    );
+
+    try {
+      final result = await _urlImportService.importFromUrl(url);
+      final updatedResults = [
+        results[0].copyWith(
+          character: result.character,
+          isProcessing: false,
+          urlSource: result.source,
+        ),
+      ];
+      state = state.copyWith(
+        results: updatedResults,
+        processedFiles: 1,
+        isLoading: false,
+      );
+    } catch (e) {
+      final updatedResults = [
+        results[0].copyWith(
+          error: e.toString(),
+          isProcessing: false,
+        ),
+      ];
+      state = state.copyWith(
+        results: updatedResults,
+        processedFiles: 1,
+        isLoading: false,
+      );
+    }
+  }
+
   void clear() {
     state = const ImportState();
   }
@@ -213,7 +279,8 @@ class ImportNotifier extends StateNotifier<ImportState> {
 final importStateProvider =
     StateNotifierProvider<ImportNotifier, ImportState>((ref) {
   final importService = ref.watch(importServiceProvider);
-  return ImportNotifier(importService);
+  final urlImportService = ref.watch(urlImportServiceProvider);
+  return ImportNotifier(importService, urlImportService);
 });
 
 /// Import format enum
@@ -267,6 +334,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               error: importState.error,
               onPickFile: () => ref.read(importStateProvider.notifier).pickFile(),
               onPickFromGallery: () => ref.read(importStateProvider.notifier).pickFromGallery(),
+              onImportUrl: (url) => ref.read(importStateProvider.notifier).importFromUrl(url),
             ),
     );
   }
@@ -375,120 +443,250 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 }
 
-class _FilePickerView extends StatelessWidget {
+class _FilePickerView extends StatefulWidget {
   final bool isLoading;
   final String? error;
   final VoidCallback onPickFile;
   final VoidCallback onPickFromGallery;
+  final ValueChanged<String> onImportUrl;
 
   const _FilePickerView({
     required this.isLoading,
     required this.error,
     required this.onPickFile,
     required this.onPickFromGallery,
+    required this.onImportUrl,
   });
 
-  /// Check if running on mobile platform
+  @override
+  State<_FilePickerView> createState() => _FilePickerViewState();
+}
+
+class _FilePickerViewState extends State<_FilePickerView> {
+  final _urlController = TextEditingController();
+  bool _showUrlInput = false;
+
   bool get _isMobile => Platform.isIOS || Platform.isAndroid;
 
   @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  void _handleUrlImport() {
+    final url = _urlController.text.trim();
+    if (url.isNotEmpty) {
+      widget.onImportUrl(url);
+    }
+  }
+
+  Future<void> _pasteAndImport() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data?.text != null && data!.text!.trim().isNotEmpty) {
+      _urlController.text = data.text!.trim();
+      _handleUrlImport();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(48),
-              decoration: BoxDecoration(
-                color: AppTheme.darkCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.darkDivider,
-                  width: 2,
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Local file import section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(48),
+                decoration: BoxDecoration(
+                  color: AppTheme.darkCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.darkDivider,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    if (widget.isLoading)
+                      const CircularProgressIndicator()
+                    else ...[
+                      const Icon(
+                        Icons.file_upload_outlined,
+                        size: 64,
+                        color: AppTheme.textMuted,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '选择角色卡文件',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '支持批量导入 • PNG, CharX, JSON 格式',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textMuted,
+                            ),
+                      ),
+                      const SizedBox(height: 24),
+                      if (_isMobile) ...[
+                        ElevatedButton.icon(
+                          onPressed: widget.onPickFromGallery,
+                          icon: const Icon(Icons.photo_library),
+                          label: Text(AppLocalizations.of(context)!.chooseFromGallery),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(200, 48),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: widget.onPickFile,
+                          icon: const Icon(Icons.folder_open),
+                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(200, 48),
+                          ),
+                        ),
+                      ] else
+                        ElevatedButton.icon(
+                          onPressed: widget.onPickFile,
+                          icon: const Icon(Icons.folder_open),
+                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                        ),
+                    ],
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  if (isLoading)
-                    const CircularProgressIndicator()
-                  else ...[
-                    const Icon(
-                      Icons.file_upload_outlined,
-                      size: 64,
-                      color: AppTheme.textMuted,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '选择角色卡文件',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '支持批量导入 • PNG, CharX, JSON 格式',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+
+              const SizedBox(height: 24),
+
+              // URL import section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppTheme.darkCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.darkDivider,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    InkWell(
+                      onTap: () => setState(() => _showUrlInput = !_showUrlInput),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.link, size: 24, color: AppTheme.accentColor),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '从网址导入',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          Icon(
+                            _showUrlInput ? Icons.expand_less : Icons.expand_more,
                             color: AppTheme.textMuted,
                           ),
-                    ),
-                    const SizedBox(height: 24),
-                    // On mobile, show both options
-                    if (_isMobile) ...[
-                      ElevatedButton.icon(
-                        onPressed: onPickFromGallery,
-                        icon: const Icon(Icons.photo_library),
-                        label: Text(l10n.chooseFromGallery),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(200, 48),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: onPickFile,
-                        icon: const Icon(Icons.folder_open),
-                        label: Text(l10n.browseFiles),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(200, 48),
-                        ),
-                      ),
-                    ] else
-                      // On desktop, just show file picker
-                      ElevatedButton.icon(
-                        onPressed: onPickFile,
-                        icon: const Icon(Icons.folder_open),
-                        label: Text(l10n.browseFiles),
-                      ),
-                  ],
-                ],
-              ),
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error, color: Colors.red, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        error!,
-                        style: const TextStyle(color: Colors.red),
+                        ],
                       ),
                     ),
+                    if (_showUrlInput) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _urlController,
+                        decoration: InputDecoration(
+                          hintText: '输入角色卡链接...',
+                          hintStyle: const TextStyle(color: AppTheme.textMuted),
+                          prefixIcon: const Icon(Icons.link, size: 20),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.content_paste, size: 20),
+                                onPressed: _pasteAndImport,
+                                tooltip: '粘贴并导入',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.download, size: 20),
+                                onPressed: widget.isLoading ? null : _handleUrlImport,
+                                tooltip: '导入',
+                              ),
+                            ],
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onSubmitted: (_) => _handleUrlImport(),
+                        enabled: !widget.isLoading,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '支持的社区（点击访问）：',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textMuted,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: const [
+                          _CommunityChip(name: 'NativeTavern', url: 'https://nativetavern.com', isPrimary: true),
+                          _CommunityChip(name: 'Chub.ai', url: 'https://chub.ai/characters'),
+                          _CommunityChip(name: 'JanitorAI', url: 'https://janitorai.com'),
+                          _CommunityChip(name: 'Pygmalion', url: 'https://pygmalion.chat'),
+                          _CommunityChip(name: 'RisuRealm', url: 'https://realm.risuai.net'),
+                          _CommunityChip(name: 'AICharacterCards', url: 'https://aicharactercards.com'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '也支持公开的 PNG / JSON 链接',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textMuted,
+                            ),
+                      ),
+                    ],
                   ],
                 ),
               ),
+
+              if (widget.error != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.error!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+              _buildFormatInfo(context),
             ],
-            const SizedBox(height: 32),
-            _buildFormatInfo(context),
-          ],
+          ),
         ),
       ),
     );
@@ -521,6 +719,12 @@ class _FilePickerView extends StatelessWidget {
           icon: Icons.code,
           title: AppLocalizations.of(context)!.json,
           description: AppLocalizations.of(context)!.plainCharacterCardJson,
+        ),
+        const SizedBox(height: 8),
+        const _FormatTile(
+          icon: Icons.link,
+          title: '社区链接',
+          description: 'NativeTavern, Chub.ai, JanitorAI, Pygmalion, RisuRealm, AICharacterCards',
         ),
       ],
     );
@@ -562,6 +766,46 @@ class _FormatTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CommunityChip extends StatelessWidget {
+  final String name;
+  final String url;
+  final bool isPrimary;
+
+  const _CommunityChip({
+    required this.name,
+    required this.url,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      avatar: Icon(
+        isPrimary ? Icons.star : Icons.open_in_new,
+        size: 14,
+        color: isPrimary ? AppTheme.accentColor : AppTheme.textMuted,
+      ),
+      label: Text(
+        name,
+        style: TextStyle(
+          fontSize: 12,
+          color: isPrimary ? AppTheme.accentColor : null,
+          fontWeight: isPrimary ? FontWeight.bold : null,
+        ),
+      ),
+      side: isPrimary
+          ? const BorderSide(color: AppTheme.accentColor, width: 1)
+          : null,
+      onPressed: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
     );
   }
 }
@@ -727,14 +971,32 @@ class _ImportResultCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    result.fileName,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textMuted,
+                  if (result.urlSource != null)
+                    Row(
+                      children: [
+                        const Icon(Icons.link, size: 12, color: AppTheme.textMuted),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            result.fileName,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.textMuted,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                      ],
+                    )
+                  else
+                    Text(
+                      result.fileName,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textMuted,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   // Show embedded lorebook indicator
                   if (result.character?.characterBook != null &&
                       result.character!.characterBook!.entries.isNotEmpty) ...[

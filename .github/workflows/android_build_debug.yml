@@ -1,0 +1,38 @@
+name: Build Android APK (Debug)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.0'
+          channel: 'stable'
+
+      - name: 查看 Flutter 版本
+        run: flutter --version
+
+      - name: 启用 Android 平台
+        run: flutter config --enable-android
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      - name: 构建调试 APK
+        run: flutter build apk --debug
+
+      - name: 上传 APK 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk

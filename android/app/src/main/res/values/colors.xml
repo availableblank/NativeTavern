@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- 与项目暗色主题一致的配色 -->
-    <color name="splash_background">#FF1A1A2E</color>
-    <color name="background">#FF0F0F23</color>
-    <color name="primary">#FF7B68EE</color>
-    <color name="surface">#FF16213E</color>
-</resources>

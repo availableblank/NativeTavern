@@ -144,7 +144,7 @@ class AIPresetsScreen extends ConsumerWidget {
   Future<void> _importPreset(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );

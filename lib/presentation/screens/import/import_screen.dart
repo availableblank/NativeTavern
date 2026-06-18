@@ -108,7 +108,7 @@ class ImportNotifier extends StateNotifier<ImportState> {
 
   Future<void> pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['png', 'charx', 'json'],
         allowMultiple: true, // Enable batch import

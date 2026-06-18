@@ -571,7 +571,7 @@ class _PersonaDialogState extends State<_PersonaDialog> {
   /// Pick image from files using FilePicker (for desktop)
   Future<void> _pickImageFromFiles() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.image,
         allowMultiple: false,
         dialogTitle: 'Select Avatar Image',

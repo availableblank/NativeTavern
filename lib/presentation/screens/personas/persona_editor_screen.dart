@@ -497,7 +497,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
 
   Future<void> _pickImageFromFiles() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );

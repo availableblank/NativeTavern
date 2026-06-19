@@ -145,7 +145,7 @@ class ChatExportService {
     final fileName = '${character.name}_${chat.id}.$extension';
 
     // Let user choose save location
-    final result = await FilePicker.saveFile(
+    final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Chat Export',
       fileName: fileName,
       type: FileType.custom,
@@ -280,7 +280,7 @@ class ChatExportService {
 
   /// Import chat from file
   Future<ChatImportResult?> importFromFile() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       allowMultiple: false,
     );

@@ -1645,8 +1645,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final l10n = AppLocalizations.of(context);
     debugPrint('📎 _pickImageFromFiles called');
     try {
-      debugPrint('📎 Calling FilePicker.pickFiles...');
-      final result = await FilePicker.pickFiles(
+      debugPrint('📎 Calling FilePicker.platform.pickFiles...');
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: true,
         dialogTitle: l10n.selectImages,

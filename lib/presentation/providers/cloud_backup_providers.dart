@@ -396,7 +396,7 @@ class CloudBackupOperationNotifier extends StateNotifier<CloudBackupOperationSta
       final file = await _service.exportForGoogleDrive(data: data);
       
       // Let user pick destination
-      final result = await FilePicker.saveFile(
+      final result = await FilePicker.platform.saveFile(
         dialogTitle: 'Save backup to Google Drive or other location',
         fileName: file.uri.pathSegments.last,
         type: FileType.any,
@@ -450,7 +450,7 @@ class CloudBackupOperationNotifier extends StateNotifier<CloudBackupOperationSta
     );
     
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
         dialogTitle: 'Select backup file from Google Drive or other location',

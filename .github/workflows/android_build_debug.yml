@@ -22,9 +22,6 @@ jobs:
       - name: 查看 Flutter 版本
         run: flutter --version
 
-      - name: 启用 Android 平台
-        run: flutter config --enable-android
-
       - name: 清理构建缓存
         run: flutter clean
 
